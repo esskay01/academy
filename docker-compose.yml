@@ -1,0 +1,96 @@
+name: bajrang-academy
+
+# Defaults below are for local use only. Override them in a `.env` file
+# (see .env.example) — never ship the default secret or admin password.
+x-app-env: &app-env
+  DATABASE_URL: postgres://${POSTGRES_USER:-bajrang}:${POSTGRES_PASSWORD:-bajrang}@db:5432/${POSTGRES_DB:-bajrang}
+  BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET:-dev-only-secret-change-me-0123456789abcdef}
+  BETTER_AUTH_URL: ${BETTER_AUTH_URL:-http://localhost:${APP_PORT:-3000}}
+  # The e2e container reaches the app as http://academy-web:3000, so trust that origin too.
+  BETTER_AUTH_TRUSTED_ORIGINS: http://localhost:${APP_PORT:-3000},http://academy-web:3000
+
+services:
+  db:
+    image: postgres:18-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-bajrang}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-bajrang}
+      POSTGRES_DB: ${POSTGRES_DB:-bajrang}
+    ports:
+      - "${DB_PORT:-5432}:5432"
+    volumes:
+      # Postgres 18 images keep data under /var/lib/postgresql/<major>/…
+      - pgdata:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
+  # One-shot: apply migrations, then seed the first admin + starter content.
+  migrate:
+    build: { context: ., target: tools }
+    command: sh -c "npm run db:migrate && npm run db:seed"
+    environment:
+      <<: *app-env
+      ADMIN_EMAIL: ${ADMIN_EMAIL:-admin@bajrang.academy}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-Admin@12345}
+      ADMIN_NAME: ${ADMIN_NAME:-Academy Admin}
+    depends_on:
+      db: { condition: service_healthy }
+
+  app:
+    build: { context: ., target: runner }
+    restart: unless-stopped
+    environment: *app-env
+    ports:
+      - "${APP_PORT:-3000}:3000"
+    networks:
+      default:
+        # Browsers can't use the service name: "app" is an HSTS-preloaded TLD,
+        # so Chromium force-upgrades http://app:3000 to HTTPS.
+        aliases: [academy-web]
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+
+  # Hot-reloading dev server:  docker compose --profile dev up dev
+  dev:
+    profiles: [dev]
+    build: { context: ., target: tools }
+    command: npm run dev
+    environment:
+      <<: *app-env
+      WATCHPACK_POLLING: "true"
+    ports:
+      - "${APP_PORT:-3000}:3000"
+    volumes:
+      - .:/app
+      - /app/node_modules
+      - /app/.next
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+
+  # Unit tests:  docker compose --profile test run --rm unit
+  unit:
+    profiles: [test]
+    build: { context: ., target: tools }
+    command: npm test
+
+  # End-to-end tests against the production build:
+  #   docker compose --profile test run --rm e2e
+  e2e:
+    profiles: [test]
+    build: { context: ., dockerfile: e2e/Dockerfile }
+    environment:
+      BASE_URL: http://academy-web:3000
+      ADMIN_EMAIL: ${ADMIN_EMAIL:-admin@bajrang.academy}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-Admin@12345}
+    volumes:
+      - ./playwright-report:/e2e/playwright-report
+      - ./test-results:/e2e/test-results
+    depends_on:
+      app: { condition: service_healthy }
+
+volumes:
+  pgdata:
