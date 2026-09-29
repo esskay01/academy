@@ -96,8 +96,17 @@ Pages that run DB work before any request API must call `connection()` first. Ot
 
 **Members admin.** The list is paginated (`?size=` must be a multiple of 10 from 10 to 100, default 50; `?page=`). Only `inactive` members can be permanently deleted. Sessions and accounts cascade.
 
+## Production
+
+See `DEPLOY.md`: an Oracle Cloud ARM VM running `docker-compose.prod.yml`, published at https://app.sksap.com via Cloudflare Tunnel (no public web port).
+- `.github/workflows/ci-deploy.yml` runs lint, typecheck, unit and e2e, then SSHes to the VM to run `deploy/deploy.sh <sha>`. The image is built **on the VM** (native ARM64).
+- Production sets `CLIENT_IP_HEADER=cf-connecting-ip` so Better Auth rate-limits per real visitor. It's only safe because the app is unreachable except through Cloudflare.
+- The `backup` service (`deploy/backup.sh`) dumps nightly after 02:00 IST and can upload to Object Storage. It depends on `migrate`, so the first dump on a fresh server has the schema.
+
 ## Gotchas
 
+- Decorative oversized glows need `overflow-clip`, not `overflow-hidden`. "hidden" still creates a scroll container that a click or focus can shift sideways (the hero did).
+- A 1×1 test image reports `naturalWidth` 0 through a `srcset` (width ÷ density), so e2e fixtures use 64×64.
 - lucide-react v1 has no brand icons; social icons are inline SVGs in `components/brand/social-icons.tsx`.
 - Zod 4: use `z.flattenError(err)` rather than `err.flatten()`, and `{ error: "…" }` for messages.
 - `revalidateTag` requires a second (cacheLife) argument in Next 16.

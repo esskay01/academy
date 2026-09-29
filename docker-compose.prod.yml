@@ -1,0 +1,91 @@
+# Production stack for the Oracle Cloud VM, published at app.sksap.com through
+# Cloudflare Tunnel. Nothing listens on a public port: cloudflared makes an
+# outbound connection to Cloudflare and forwards requests to app:3000.
+#
+#   docker compose -f docker-compose.prod.yml up -d --build   (deploy/deploy.sh does this)
+#
+# Secrets come from ./.env on the server (copy .env.production.example).
+# `${VAR:?msg}` makes compose refuse to start when a required value is missing.
+name: bajrang-prod
+
+x-app-env: &app-env
+  DATABASE_URL: postgres://${POSTGRES_USER:-bajrang}:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}@db:5432/${POSTGRES_DB:-bajrang}
+  BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET:?set BETTER_AUTH_SECRET in .env}
+  BETTER_AUTH_URL: ${PUBLIC_URL:?set PUBLIC_URL in .env, e.g. https://app.sksap.com}
+  BETTER_AUTH_TRUSTED_ORIGINS: ${PUBLIC_URL}
+  # Only safe because the app is reachable solely via Cloudflare (see src/lib/auth.ts).
+  CLIENT_IP_HEADER: cf-connecting-ip
+
+services:
+  db:
+    image: postgres:18-alpine
+    restart: always
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-bajrang}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+      POSTGRES_DB: ${POSTGRES_DB:-bajrang}
+    volumes:
+      - pgdata:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  # One-shot on every deploy: apply migrations, then the idempotent seed.
+  migrate:
+    build: { context: ., target: tools }
+    command: sh -c "npm run db:migrate && npm run db:seed"
+    environment:
+      <<: *app-env
+      ADMIN_EMAIL: ${ADMIN_EMAIL:?set ADMIN_EMAIL in .env}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:?set ADMIN_PASSWORD in .env}
+      ADMIN_NAME: ${ADMIN_NAME:-Academy Admin}
+    depends_on:
+      db: { condition: service_healthy }
+
+  app:
+    build: { context: ., target: runner }
+    restart: always
+    environment: *app-env
+    # Loopback only — for health checks on the VM itself. Public traffic arrives via the tunnel.
+    ports:
+      - "127.0.0.1:${APP_PORT:-3000}:3000"
+    networks:
+      default:
+        # Same alias as docker-compose.yml, so e2e-style checks work unchanged.
+        aliases: [academy-web]
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+
+  tunnel:
+    image: cloudflare/cloudflared:2026.9.3
+    restart: always
+    command: tunnel --no-autoupdate run
+    environment:
+      TUNNEL_TOKEN: ${CLOUDFLARE_TUNNEL_TOKEN:?set CLOUDFLARE_TUNNEL_TOKEN in .env}
+    depends_on:
+      app: { condition: service_healthy }
+
+  # Nightly pg_dump (includes uploaded photos, which live in Postgres) to
+  # ./backups on the VM, optionally copied to Oracle Object Storage.
+  backup:
+    image: postgres:18-alpine
+    restart: always
+    entrypoint: ["sh", "/backup.sh"]
+    environment:
+      PGHOST: db
+      PGUSER: ${POSTGRES_USER:-bajrang}
+      PGPASSWORD: ${POSTGRES_PASSWORD}
+      PGDATABASE: ${POSTGRES_DB:-bajrang}
+      BACKUP_KEEP_DAYS: ${BACKUP_KEEP_DAYS:-14}
+      BACKUP_UPLOAD_URL: ${BACKUP_UPLOAD_URL:-}
+    volumes:
+      - ./deploy/backup.sh:/backup.sh:ro
+      - ./backups:/backups
+    depends_on:
+      # Not just db: on a fresh server the first dump must include the migrated schema.
+      migrate: { condition: service_completed_successfully }
+
+volumes:
+  pgdata:

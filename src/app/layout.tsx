@@ -1,16 +1,17 @@
 import type { Metadata, Viewport } from "next";
-import { Bricolage_Grotesque, Geist } from "next/font/google";
+import { Inter, Outfit } from "next/font/google";
 import { Toaster } from "sonner";
 import "./globals.css";
 
-const display = Bricolage_Grotesque({
-  variable: "--font-bricolage",
-  subsets: ["latin"],
+// Headings: Outfit — clean geometric, sporty. Body: Inter — built for screen legibility.
+const display = Outfit({
+  variable: "--font-display-face",
+  subsets: ["latin", "latin-ext"],
 });
 
-const sans = Geist({
-  variable: "--font-geist",
-  subsets: ["latin"],
+const sans = Inter({
+  variable: "--font-body-face",
+  subsets: ["latin", "latin-ext"],
 });
 
 export const metadata: Metadata = {

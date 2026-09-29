@@ -38,10 +38,10 @@ export function CoachForm({ coach, onDone }: { coach?: Coach } & WithDone) {
             <Textarea id={`${p}spec`} label="Specialties" name="specialties" rows={3} defaultValue={coach?.specialties.join("\n")} hint="One per line" error={e.specialties} />
             <Textarea id={`${p}ach`} label="Achievements" name="achievements" rows={3} defaultValue={coach?.achievements ?? ""} error={e.achievements} />
           </div>
-          <div className="grid gap-4 sm:grid-cols-3">
+          <ImageInput id={`${p}photo`} label="Coach photo" currentUrl={coach?.photoUrl} fallbackName={coach?.name ?? "New coach"} error={e.photo} />
+          <div className="grid gap-4 sm:grid-cols-2">
             <Input id={`${p}exp`} label="Experience (yrs)" name="experienceYears" type="number" min={0} defaultValue={coach?.experienceYears ?? 1} error={e.experienceYears} />
             <Input id={`${p}order`} label="Display order" name="sortOrder" type="number" min={0} defaultValue={coach?.sortOrder ?? 0} error={e.sortOrder} />
-            <Input id={`${p}photo`} label="Photo URL" name="photoUrl" type="url" placeholder="https://…" defaultValue={coach?.photoUrl ?? ""} error={e.photoUrl} />
           </div>
           <Checkbox label="Show on website" name="isActive" defaultChecked={coach?.isActive ?? true} />
         </>
@@ -143,6 +143,15 @@ export function SettingsForm({ settings }: { settings: SiteSettings | null }) {
             <Input label="Hero headline" name="heroTitle" defaultValue={s?.heroTitle} error={e.heroTitle} hint="The last two words get the gradient highlight." />
             <Textarea label="Hero sub-heading" name="heroSubtitle" defaultValue={s?.heroSubtitle} error={e.heroSubtitle} />
             <Textarea label="About the academy" name="aboutText" rows={4} defaultValue={s?.aboutText} error={e.aboutText} />
+          </Group>
+          <Group title="Hero highlights">
+            <p className="-mt-2 text-xs text-white/45">The two floating chips beside the hero court. Leave a value blank to hide that chip.</p>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Input id="heroChip1Label" label="Top-left chip — label" name="heroChip1Label" defaultValue={s?.heroChip1Label ?? ""} placeholder="This season" error={e.heroChip1Label} />
+              <Input id="heroChip1Value" label="Top-left chip — value" name="heroChip1Value" defaultValue={s?.heroChip1Value ?? ""} placeholder="18 state medals" error={e.heroChip1Value} />
+              <Input id="heroChip2Label" label="Bottom-right chip — label" name="heroChip2Label" defaultValue={s?.heroChip2Label ?? ""} placeholder="Batch size" error={e.heroChip2Label} />
+              <Input id="heroChip2Value" label="Bottom-right chip — value" name="heroChip2Value" defaultValue={s?.heroChip2Value ?? ""} placeholder="Max 1 : 8 ratio" error={e.heroChip2Value} />
+            </div>
           </Group>
           <Group title="Contact information">
             <div className="grid gap-4 sm:grid-cols-3">

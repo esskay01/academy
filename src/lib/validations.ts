@@ -118,7 +118,7 @@ export const coachSchema = z.object({
   bio: text("Bio", 1000),
   specialties: list,
   experienceYears: int("Experience", 0, 70),
-  photoUrl: optionalUrl,
+  removePhoto: checkbox,
   achievements: optionalText(500),
   sortOrder: int("Order", 0, 1000),
   isActive: checkbox,
@@ -185,6 +185,10 @@ export const settingsSchema = z.object({
   studentsCount: int("Students", 0, 1_000_000),
   yearsRunning: int("Years", 0, 200),
   titlesWon: int("Titles", 0, 100_000),
+  heroChip1Label: optionalText(30),
+  heroChip1Value: optionalText(40),
+  heroChip2Label: optionalText(30),
+  heroChip2Value: optionalText(40),
 });
 
 export const createAdminSchema = z.object({

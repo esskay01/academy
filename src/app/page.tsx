@@ -42,13 +42,18 @@ export default async function HomePage() {
           students={settings.studentsCount}
           members={content.recentMembers}
           courts={settings.courtsCount}
+          chips={[
+            { label: settings.heroChip1Label, value: settings.heroChip1Value },
+            { label: settings.heroChip2Label, value: settings.heroChip2Value },
+          ]}
         />
         <StatsBand settings={settings} />
+        <div className="h-14 sm:h-20" aria-hidden />
+        <Testimonials items={content.testimonials} />
         <About settings={settings} />
         <Programs programs={content.programs} />
         <Coaches coaches={content.coaches} />
         <Schedule slots={content.slots} />
-        <Testimonials items={content.testimonials} />
         <News items={content.announcements} />
         <Contact settings={settings} />
       </main>

@@ -11,10 +11,16 @@ const trustedOrigins = (process.env.BETTER_AUTH_TRUSTED_ORIGINS ?? "")
   .map((o) => o.trim())
   .filter(Boolean);
 
+// Which header holds the real client IP (used for sign-in rate limiting).
+// Production sets "cf-connecting-ip": Cloudflare writes it and the app is only
+// reachable through the tunnel, so it can't be spoofed. Unset = library default.
+const ipHeader = process.env.CLIENT_IP_HEADER?.trim();
+
 export const auth = betterAuth({
   appName: "Bajrang Badminton Academy",
   database: drizzleAdapter(db, { provider: "pg", schema }),
   trustedOrigins,
+  advanced: ipHeader ? { ipAddress: { ipAddressHeaders: [ipHeader] } } : undefined,
   emailAndPassword: {
     enabled: true,
     minPasswordLength: 8,

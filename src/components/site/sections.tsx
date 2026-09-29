@@ -335,27 +335,52 @@ export function Footer({ settings }: { settings: SiteSettings }) {
 
 export function Testimonials({ items }: { items: Testimonial[] }) {
   if (items.length === 0) return null;
+  // The track holds the list twice and slides by exactly half its width, so the
+  // loop is seamless. Short lists are repeated so the band is always full.
+  const base = items.length < 4 ? [...items, ...items, ...items].slice(0, Math.max(4, items.length)) : items;
+  const seconds = Math.max(30, base.length * 9);
+
   return (
-    <Section id="testimonials">
-      <SectionHeading eyebrow="Testimonials" title={<>Heard <span className="text-gradient">on court</span></>} description="Players and parents on what training at the academy feels like." />
-      <div className="columns-1 gap-6 md:columns-2 lg:columns-3">
-        {items.map((t, i) => (
-          <Reveal key={t.id} delay={(i % 3) * 0.06} className="mb-6 break-inside-avoid">
-            <figure className="card-hover glass rounded-3xl p-6">
-              <Quote className="size-6 text-brand/70" />
-              <p className="mt-1 text-amber-300" aria-label={`${t.rating} out of 5 stars`}>{"★".repeat(t.rating)}<span className="text-white/15">{"★".repeat(5 - t.rating)}</span></p>
-              <blockquote className="mt-3 leading-relaxed text-white/75">{t.quote}</blockquote>
-              <figcaption className="mt-5 flex items-center gap-3">
-                <Avatar name={t.name} src={t.photoUrl} className="size-11 text-sm" />
-                <div>
-                  <p className="font-semibold text-white">{t.name}</p>
-                  <p className="text-xs text-white/50">{t.role}</p>
-                </div>
-              </figcaption>
-            </figure>
-          </Reveal>
-        ))}
+    <section id="testimonials" aria-labelledby="testimonials-heading" className="relative scroll-mt-24 overflow-clip border-y border-white/10 bg-gradient-to-r from-brand/[0.07] via-surface to-cyan-500/[0.07] py-12 sm:py-16">
+      <div className="mx-auto mb-8 flex max-w-7xl flex-wrap items-end justify-between gap-4 px-6">
+        <div>
+          <p className="text-xs font-bold tracking-[0.3em] text-brand uppercase">Testimonials</p>
+          <h2 id="testimonials-heading" className="font-display mt-2 text-3xl font-bold text-white sm:text-4xl">
+            Heard <span className="text-gradient">on court</span>
+          </h2>
+        </div>
+        <p className="max-w-sm text-sm text-white/55">Players and parents on what training at the academy feels like. Hover to pause.</p>
       </div>
-    </Section>
+      <div className="group relative [mask-image:linear-gradient(to_right,transparent,black_6%,black_94%,transparent)]">
+        <div className="animate-marquee flex w-max gap-5 group-hover:[animation-play-state:paused] motion-reduce:animate-none" style={{ animationDuration: `${seconds}s` }}>
+          {[0, 1].map((copy) =>
+            base.map((t, i) => (
+              <figure
+                key={`${copy}-${t.id}-${i}`}
+                aria-hidden={copy === 1 || i >= items.length ? true : undefined}
+                data-testid={copy === 0 && i < items.length ? "testimonial" : undefined}
+                className="glass flex w-[22rem] shrink-0 flex-col rounded-3xl p-6 sm:w-[26rem]"
+              >
+                <div className="flex items-center justify-between">
+                  <Quote className="size-7 text-brand/70" />
+                  <p className="text-sm text-amber-300" aria-label={`${t.rating} out of 5 stars`}>
+                    {"★".repeat(t.rating)}
+                    <span className="text-white/15">{"★".repeat(5 - t.rating)}</span>
+                  </p>
+                </div>
+                <blockquote className="mt-3 flex-1 leading-relaxed text-white/80">{t.quote}</blockquote>
+                <figcaption className="mt-5 flex items-center gap-3">
+                  <Avatar name={t.name} src={t.photoUrl} className="size-12 text-sm ring-2 ring-brand/40" />
+                  <div>
+                    <p className="font-semibold text-white">{t.name}</p>
+                    <p className="text-xs text-white/50">{t.role}</p>
+                  </div>
+                </figcaption>
+              </figure>
+            )),
+          )}
+        </div>
+      </div>
+    </section>
   );
 }

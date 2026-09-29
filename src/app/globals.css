@@ -8,8 +8,18 @@
   /* Data marks: brand lime stepped into the dark-mode lightness band (validated). */
   --color-chart: #6f9e12;
 
-  --font-sans: var(--font-geist), ui-sans-serif, system-ui, sans-serif;
-  --font-display: var(--font-bricolage), var(--font-geist), ui-sans-serif, sans-serif;
+  --font-sans: var(--font-body-face), ui-sans-serif, system-ui, sans-serif;
+  --font-display: var(--font-display-face), var(--font-body-face), ui-sans-serif, sans-serif;
+
+  --animate-marquee: marquee 40s linear infinite;
+  @keyframes marquee {
+    from {
+      transform: translateX(0);
+    }
+    to {
+      transform: translateX(calc(-50% - 0.625rem)); /* half the track + half the gap */
+    }
+  }
 
   --animate-float: float 5s ease-in-out infinite;
   @keyframes float {

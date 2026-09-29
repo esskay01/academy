@@ -1,0 +1,74 @@
+name: CI & Deploy
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  checks:
+    name: Lint, types & unit tests
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm test
+
+  e2e:
+    name: End-to-end (Docker)
+    needs: checks
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+      - name: Run Playwright against the production build
+        run: docker compose -p ci --profile test run --rm --build e2e
+      - name: Upload Playwright report
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: playwright-report
+          path: |
+            playwright-report
+            test-results
+          retention-days: 7
+      - name: Tear down
+        if: always()
+        run: docker compose -p ci --profile test down -v
+
+  deploy:
+    name: Deploy to app.sksap.com
+    needs: [checks, e2e]
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    environment:
+      name: production
+      url: https://app.sksap.com
+    # One deploy at a time; a newer push waits instead of racing.
+    concurrency:
+      group: production
+      cancel-in-progress: false
+    steps:
+      - name: Deploy the tested commit over SSH
+        env:
+          SSH_HOST: ${{ secrets.DEPLOY_HOST }}
+          SSH_USER: ${{ secrets.DEPLOY_USER }}
+          SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          SSH_KNOWN_HOSTS: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
+        run: |
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/deploy_key && chmod 600 ~/.ssh/deploy_key
+          printf '%s\n' "$SSH_KNOWN_HOSTS" > ~/.ssh/known_hosts
+          ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=yes "$SSH_USER@$SSH_HOST" \
+            "bash ~/bajrang/deploy/deploy.sh ${{ github.sha }}"
+      - name: Check the public site
+        run: curl -fsS --retry 5 --retry-delay 5 -o /dev/null https://app.sksap.com/api/auth/ok

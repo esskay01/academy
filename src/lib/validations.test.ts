@@ -72,7 +72,7 @@ describe("admin content schemas", () => {
     });
     expect(r.specialties).toEqual(["Smash", "Defence", "Footwork"]);
     expect(r.isActive).toBe(true);
-    expect(r.photoUrl).toBeNull();
+    expect(r.removePhoto).toBe(false);
   });
 
   it("requires slot end time after start and enrolled ≤ capacity", () => {

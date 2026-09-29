@@ -8,8 +8,9 @@ const unique = () => `${Date.now()}-${Math.floor(Math.random() * 1e6)}`;
 /** Letters-only unique token, for names (digits would make odd initials). */
 const uniqueWord = () => [...String(Date.now()).slice(-7)].map((d) => "abcdefghij"[Number(d)]).join("");
 
-// 1×1 PNG
-const PNG = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==", "base64");
+// 64×64 PNG. (A 1×1 image reports naturalWidth 0 through a srcset because the
+// browser divides by the chosen density, so it is too small to prove loading.)
+const PNG = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAIAAAAlC+aJAAAAeklEQVR4nO3PwQkAIBDAsBvM/XEh/w7hIwiFDpDOPuvrhgsa0IIGtKABLWhACxrQgga0oAEtaEALGtCCBrSgAS1oQAsa0IIGtKABLWhACxrQgga0oAEtaEALGtCCBrSgAS1oQAsa0IIGtKABLWhACxrQgga0oAEteOwCkQmR0gvHRCMAAAAASUVORK5CYII=", "base64");
 
 async function register(page: Page, name: string, email: string) {
   await page.goto("/register");
@@ -72,6 +73,41 @@ test("home page shows the academy content", async ({ page }) => {
     await expect(page.locator(`section#${id}`)).toBeVisible();
   }
   await expect(page.getByRole("link", { name: "Join the academy" }).first()).toBeVisible();
+});
+
+test("hero court: doubles demo loops; a visitor picks a player, names themselves, plays a rally and returns", async ({ page }) => {
+  await page.goto("/");
+  const shuttle = page.getByTestId("shuttle");
+
+  // Attract loop: four players, the shuttle keeps moving on its own.
+  for (const id of [0, 1, 2, 3]) await expect(page.getByTestId(`player-${id}`)).toBeAttached();
+  const before = await shuttle.evaluate((el) => el.style.transform);
+  await expect.poll(() => shuttle.evaluate((el) => el.style.transform), { timeout: 5_000 }).not.toBe(before);
+
+  // Enter → choose player/court → name.
+  await page.getByRole("button", { name: "Play a rally" }).click();
+  await page.getByRole("button", { name: /Bottom court · left/ }).click();
+  const nameInput = page.getByLabel("Your name");
+  await nameInput.fill("x");
+  await page.getByRole("button", { name: "Start rally" }).click();
+  await expect(page.getByText("Use 2–16 characters.")).toBeVisible();
+  await nameInput.fill("Ace Tester");
+  await page.getByRole("button", { name: "Start rally" }).click();
+
+  // Playing: HUD shows the visitor; steer a little with the keyboard.
+  await expect(page.getByTestId("game-hud")).toContainText("Ace Tester", { timeout: 5_000 });
+  await expect(page.getByTestId("player-2")).toContainText("Ace Tester (you)");
+  await page.keyboard.down("ArrowRight");
+  await page.waitForTimeout(300);
+  await page.keyboard.up("ArrowRight");
+
+  // The rally ends (won or lost), then the visitor returns to the demo.
+  const result = page.getByTestId("rally-result");
+  await expect(result).toBeVisible({ timeout: 60_000 });
+  await expect(result).toContainText("Returns");
+  await page.getByRole("button", { name: "Back to demo" }).click();
+  await expect(page.getByTestId("last-rally")).toContainText("Ace Tester");
+  await expect(page.getByRole("button", { name: "Play a rally" })).toBeVisible();
 });
 
 test("protected pages redirect anonymous visitors to login", async ({ page }) => {
@@ -199,6 +235,7 @@ test("admin edits to contact info, coaches and slots appear on the website", asy
   await page.locator("#coach-new-title").fill("Guest Coach");
   await page.locator("#coach-new-bio").fill("Visiting specialist.");
   await page.locator("#coach-new-spec").fill("Drop shots");
+  await page.locator("#coach-new-photo").setInputFiles({ name: "coach.png", mimeType: "image/png", buffer: PNG });
   await page.getByRole("button", { name: "Add coach", exact: true }).click();
   await expect(page.getByText("Coach added.")).toBeVisible();
 
@@ -212,6 +249,10 @@ test("admin edits to contact info, coaches and slots appear on the website", asy
   await page.goto("/");
   await expect(page.locator("#contact")).toContainText(phone);
   await expect(page.locator("#coaches")).toContainText(coach);
+  // Uploaded coach photo is served and actually loads.
+  const coachImg = page.locator("#coaches article").filter({ hasText: coach }).locator("img");
+  await expect(coachImg).toHaveJSProperty("complete", true);
+  expect(await coachImg.evaluate((img: HTMLImageElement) => img.naturalWidth)).toBeGreaterThan(0);
   await expect(page.locator("#schedule")).toContainText(slot);
 });
 
@@ -333,7 +374,8 @@ test("admin publishes a testimonial with a photo on the home page", async ({ pag
   await expect(page.getByText("Testimonial added.")).toBeVisible();
 
   await page.goto("/");
-  const figure = page.locator("#testimonials figure").filter({ hasText: name });
+  // The banner repeats cards for a seamless loop; only the originals carry the test id.
+  const figure = page.getByTestId("testimonial").filter({ hasText: name });
   await expect(figure).toContainText("Fantastic coaching");
   await expect(figure.locator("img")).toHaveAttribute("src", /^\/media\//);
 });
@@ -418,4 +460,25 @@ test("admin records a membership payment; member sees days left; it expires to i
   await expect(page.getByText("Member is active again.")).toBeVisible();
   await page.goto(`/admin/members?q=${encodeURIComponent(email)}`);
   await expect(memberRow(page, email).getByTestId("status-badge")).toHaveText("Active");
+});
+
+test("admin edits the hero highlight chips; a blank value hides a chip", async ({ page }) => {
+  // Defaults from the migration are shown before any edit.
+  await page.goto("/");
+  await expect(page.getByTestId("hero-chip-1")).toBeAttached();
+
+  const value = `${Date.now() % 100000} district titles`;
+  await loginAdmin(page);
+  await page.goto("/admin/settings");
+  await expect(page.getByLabel("Top-left chip — value")).not.toHaveValue("");
+  await page.getByLabel("Top-left chip — label").fill("Since 2014");
+  await page.getByLabel("Top-left chip — value").fill(value);
+  await page.getByLabel("Bottom-right chip — value").fill("");
+  await page.getByRole("button", { name: "Save website info" }).click();
+  await expect(page.getByText("Website information updated.")).toBeVisible();
+
+  await page.goto("/");
+  await expect(page.getByTestId("hero-chip-1")).toContainText("Since 2014");
+  await expect(page.getByTestId("hero-chip-1")).toContainText(value);
+  await expect(page.getByTestId("hero-chip-2")).toHaveCount(0);
 });

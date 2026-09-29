@@ -130,6 +130,11 @@ export const siteSettings = pgTable("site_settings", {
   studentsCount: integer("students_count").notNull().default(0),
   yearsRunning: integer("years_running").notNull().default(0),
   titlesWon: integer("titles_won").notNull().default(0),
+  // Floating highlight chips on the hero court. A chip with no value is hidden.
+  heroChip1Label: text("hero_chip1_label").default("This season"),
+  heroChip1Value: text("hero_chip1_value").default("18 state medals"),
+  heroChip2Label: text("hero_chip2_label").default("Batch size"),
+  heroChip2Value: text("hero_chip2_value").default("Max 1 : 8 ratio"),
   updatedAt: timestamp("updated_at")
     .notNull()
     .defaultNow()

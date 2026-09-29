@@ -12,7 +12,7 @@ import { AnnouncementForm, CoachForm, ProgramForm, SlotForm, TestimonialForm } f
 import { Avatar } from "@/components/ui/avatar";
 import { AddPanel, EditableItem } from "@/components/admin/ui";
 import type { Announcement, Coach, Program, Testimonial, TrainingSlot } from "@/lib/db/schema";
-import { capitalize, formatDate, formatINR, formatTime, initials } from "@/lib/utils";
+import { capitalize, formatDate, formatINR, formatTime } from "@/lib/utils";
 
 function Empty({ children }: { children: React.ReactNode }) {
   return <p className="rounded-2xl border border-white/10 p-8 text-center text-sm text-white/45">{children}</p>;
@@ -30,7 +30,7 @@ export function CoachManager({ coaches }: { coaches: Coach[] }) {
       {coaches.map((c) => (
         <EditableItem key={c.id} muted={!c.isActive} renderForm={(done) => <CoachForm coach={c} onDone={done} />} deleteAction={() => deleteCoach(c.id)}>
           <div className="flex items-center gap-4">
-            <span className="font-display grid size-12 shrink-0 place-items-center rounded-2xl bg-gradient-to-br from-brand/80 to-cyan-400/80 font-bold text-ink">{initials(c.name)}</span>
+            <Avatar name={c.name} src={c.photoUrl} className="size-12 rounded-2xl text-sm" />
             <div className="min-w-0">
               <p className="flex items-center gap-2 font-semibold text-white">
                 {c.name} <Hidden show={!c.isActive} />

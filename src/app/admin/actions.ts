@@ -287,16 +287,33 @@ export async function saveCoach(_prev: ActionState, formData: FormData): Promise
   await requireAdmin();
   const parsed = coachSchema.safeParse(formToObject(formData));
   if (!parsed.success) return invalid(parsed.error);
+  const { removePhoto, ...fields } = parsed.data;
   const id = optionalId(formData);
-  if (id) await db.update(coaches).set(parsed.data).where(eq(coaches.id, id));
-  else await db.insert(coaches).values(parsed.data);
+
+  const photo = await readImage(formData, "photo");
+  if (photo && !photo.ok) return { ok: false, message: photo.error, errors: { photo: [photo.error] } };
+
+  if (id) {
+    const [current] = await db.select({ photoUrl: coaches.photoUrl }).from(coaches).where(eq(coaches.id, id));
+    if (!current) return { ok: false, message: "Coach not found." };
+    let photoUrl = current.photoUrl;
+    if (photo?.ok || removePhoto) {
+      await deleteImage(current.photoUrl);
+      photoUrl = photo?.ok ? await saveImage(photo) : null;
+    }
+    await db.update(coaches).set({ ...fields, photoUrl }).where(eq(coaches.id, id));
+  } else {
+    const photoUrl = photo?.ok ? await saveImage(photo) : null;
+    await db.insert(coaches).values({ ...fields, photoUrl });
+  }
   refreshSite();
   return { ok: true, message: id ? "Coach updated." : "Coach added." };
 }
 
 export async function deleteCoach(id: number): Promise<ActionState> {
   await requireAdmin();
-  await db.delete(coaches).where(eq(coaches.id, idSchema.parse(id)));
+  const [row] = await db.delete(coaches).where(eq(coaches.id, idSchema.parse(id))).returning({ photoUrl: coaches.photoUrl });
+  await deleteImage(row?.photoUrl);
   refreshSite();
   return { ok: true, message: "Coach removed." };
 }
