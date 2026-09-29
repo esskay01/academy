@@ -5,6 +5,8 @@
   --color-surface: #0b1020;
   --color-brand: #c8f53c;
   --color-ember: #ff7a45;
+  /* Data marks: brand lime stepped into the dark-mode lightness band (validated). */
+  --color-chart: #6f9e12;
 
   --font-sans: var(--font-geist), ui-sans-serif, system-ui, sans-serif;
   --font-display: var(--font-bricolage), var(--font-geist), ui-sans-serif, sans-serif;

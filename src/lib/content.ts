@@ -1,5 +1,5 @@
 import "server-only";
-import { asc, desc, eq } from "drizzle-orm";
+import { and, asc, desc, eq, ne, sql } from "drizzle-orm";
 import { connection } from "next/server";
 import { db } from "@/lib/db";
 import {
@@ -7,8 +7,11 @@ import {
   coaches,
   programs,
   siteSettings,
+  testimonials,
   trainingSlots,
+  user,
 } from "@/lib/db/schema";
+import { shortName } from "@/lib/utils";
 
 // Public website content. `connection()` keeps these reads at request time,
 // so admin edits show up immediately and `next build` never needs a database.
@@ -21,7 +24,7 @@ export async function getSiteSettings() {
 
 export async function getPublicContent() {
   await connection();
-  const [settings, coachRows, slotRows, programRows, newsRows] =
+  const [settings, coachRows, slotRows, programRows, newsRows, testimonialRows, memberRows] =
     await Promise.all([
       getSiteSettings(),
       db
@@ -46,6 +49,20 @@ export async function getPublicContent() {
         .where(eq(announcements.isPublished, true))
         .orderBy(desc(announcements.createdAt))
         .limit(3),
+      db
+        .select()
+        .from(testimonials)
+        .where(eq(testimonials.isPublished, true))
+        .orderBy(asc(testimonials.sortOrder), desc(testimonials.createdAt))
+        .limit(9),
+      // Most recently approved players for the hero avatars. Only public-safe
+      // fields leave the server: short name, photo, level, join date.
+      db
+        .select({ id: user.id, name: user.name, image: user.image, skillLevel: user.skillLevel, createdAt: user.createdAt })
+        .from(user)
+        .where(and(eq(user.status, "active"), ne(user.role, "admin")))
+        .orderBy(sql`${user.statusUpdatedAt} desc nulls last`, desc(user.createdAt))
+        .limit(4),
     ]);
 
   return {
@@ -54,8 +71,11 @@ export async function getPublicContent() {
     slots: slotRows.map((r) => ({ ...r.slot, coachName: r.coachName })),
     programs: programRows,
     announcements: newsRows,
+    testimonials: testimonialRows,
+    recentMembers: memberRows.map((m) => ({ ...m, name: shortName(m.name) })),
   };
 }
 
 export type PublicContent = Awaited<ReturnType<typeof getPublicContent>>;
 export type PublicSlot = PublicContent["slots"][number];
+export type PublicMember = PublicContent["recentMembers"][number];

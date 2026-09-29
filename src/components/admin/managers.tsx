@@ -6,10 +6,12 @@ import {
   deleteCoach,
   deleteProgram,
   deleteSlot,
+  deleteTestimonial,
 } from "@/app/admin/actions";
-import { AnnouncementForm, CoachForm, ProgramForm, SlotForm } from "@/components/admin/forms";
+import { AnnouncementForm, CoachForm, ProgramForm, SlotForm, TestimonialForm } from "@/components/admin/forms";
+import { Avatar } from "@/components/ui/avatar";
 import { AddPanel, EditableItem } from "@/components/admin/ui";
-import type { Announcement, Coach, Program, TrainingSlot } from "@/lib/db/schema";
+import type { Announcement, Coach, Program, Testimonial, TrainingSlot } from "@/lib/db/schema";
 import { capitalize, formatDate, formatINR, formatTime, initials } from "@/lib/utils";
 
 function Empty({ children }: { children: React.ReactNode }) {
@@ -110,6 +112,29 @@ export function AnnouncementManager({ items }: { items: Announcement[] }) {
           <p className="truncate text-sm text-white/50">
             {formatDate(a.createdAt)} · {a.body}
           </p>
+        </EditableItem>
+      ))}
+    </div>
+  );
+}
+
+export function TestimonialManager({ items }: { items: Testimonial[] }) {
+  return (
+    <div className="space-y-3">
+      <AddPanel label="Add a testimonial">{(done) => <TestimonialForm onDone={done} />}</AddPanel>
+      {items.length === 0 && <Empty>No testimonials yet.</Empty>}
+      {items.map((t) => (
+        <EditableItem key={t.id} muted={!t.isPublished} renderForm={(done) => <TestimonialForm item={t} onDone={done} />} deleteAction={() => deleteTestimonial(t.id)}>
+          <div className="flex items-center gap-4">
+            <Avatar name={t.name} src={t.photoUrl} className="size-12 rounded-2xl" />
+            <div className="min-w-0">
+              <p className="flex items-center gap-2 font-semibold text-white">
+                {t.name} <span className="text-xs font-normal text-amber-300">{"★".repeat(t.rating)}</span>
+                {!t.isPublished && <span className="rounded-full bg-white/10 px-2 py-0.5 text-[10px] font-semibold text-white/60 uppercase">Draft</span>}
+              </p>
+              <p className="truncate text-sm text-white/50">{t.role} · “{t.quote}”</p>
+            </div>
+          </div>
         </EditableItem>
       ))}
     </div>

@@ -6,7 +6,7 @@ import { useEffect, useRef, type ReactNode } from "react";
 export function Reveal({
   children,
   delay = 0,
-  y = 24,
+  y = 16,
   className,
 }: {
   children: ReactNode;
@@ -19,8 +19,10 @@ export function Reveal({
       className={className}
       initial={{ opacity: 0, y }}
       whileInView={{ opacity: 1, y: 0 }}
-      viewport={{ once: true, margin: "-60px" }}
-      transition={{ duration: 0.6, delay, ease: [0.22, 1, 0.36, 1] }}
+      // Positive bottom margin starts the reveal ~150px *before* the element
+      // scrolls into view, so scrolling never exposes empty, not-yet-revealed space.
+      viewport={{ once: true, margin: "0px 0px 150px 0px" }}
+      transition={{ duration: 0.45, delay, ease: [0.22, 1, 0.36, 1] }}
     >
       {children}
     </motion.div>

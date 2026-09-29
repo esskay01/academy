@@ -1,25 +1,28 @@
 "use client";
 
 import { motion } from "motion/react";
-import { ArrowRight, CalendarClock, Sparkles, Trophy, Users } from "lucide-react";
+import { ArrowRight, CalendarClock, Trophy, Users } from "lucide-react";
 import { ShuttleIcon } from "@/components/brand/logo";
+import { MemberAvatars } from "@/components/site/member-avatars";
 import { LinkButton } from "@/components/ui/button";
+import type { PublicMember } from "@/lib/content";
 
 type HeroProps = {
   tagline: string;
   title: string;
   subtitle: string;
   students: number;
+  members: PublicMember[];
   courts: number;
 };
 
 const ease = [0.22, 1, 0.36, 1] as const;
 
-export function Hero({ tagline, title, subtitle, students, courts }: HeroProps) {
+export function Hero({ tagline, title, subtitle, students, courts, members }: HeroProps) {
   const words = title.split(" ");
 
   return (
-    <section className="relative isolate overflow-hidden pt-32 pb-20 sm:pt-40 sm:pb-28">
+    <section className="relative isolate overflow-hidden pt-32 pb-12 sm:pt-40 sm:pb-16">
       {/* Background: glow blobs + court lines */}
       <div aria-hidden className="absolute inset-0 -z-10">
         <div className="court-grid absolute inset-0 opacity-60" />
@@ -37,7 +40,7 @@ export function Hero({ tagline, title, subtitle, students, courts }: HeroProps) 
             transition={{ duration: 0.5, ease }}
             className="inline-flex items-center gap-2 rounded-full border border-brand/30 bg-brand/10 px-3.5 py-1.5 text-xs font-semibold tracking-wide text-brand"
           >
-            <Sparkles className="size-3.5" /> {tagline}
+            <ShuttleIcon className="size-4 -rotate-12" /> {tagline}
           </motion.span>
 
           <h1 className="font-display mt-6 text-5xl leading-[1.02] font-extrabold tracking-tight text-balance text-white sm:text-6xl lg:text-7xl">
@@ -84,13 +87,7 @@ export function Hero({ tagline, title, subtitle, students, courts }: HeroProps) 
             transition={{ duration: 0.8, delay: 0.9 }}
             className="mt-12 flex items-center gap-4"
           >
-            <div className="flex -space-x-3">
-              {["from-brand to-lime-600", "from-cyan-300 to-sky-600", "from-ember to-rose-600", "from-violet-300 to-violet-600"].map((g, i) => (
-                <span key={g} className={`grid size-10 place-items-center rounded-full border-2 border-ink bg-gradient-to-br ${g} text-xs font-bold text-ink`}>
-                  {["AK", "SR", "MP", "+"][i]}
-                </span>
-              ))}
-            </div>
+            <MemberAvatars members={members} />
             <p className="text-sm text-white/60">
               <span className="font-semibold text-white">{students.toLocaleString("en-IN")}+ players</span> training across {courts} pro courts
             </p>

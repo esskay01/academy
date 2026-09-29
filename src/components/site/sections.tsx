@@ -12,6 +12,7 @@ import {
   Megaphone,
   MessageCircle,
   Phone,
+  Quote,
   ShieldCheck,
   Target,
   UserRound,
@@ -19,8 +20,9 @@ import {
 import { FacebookIcon, InstagramIcon, YoutubeIcon } from "@/components/brand/social-icons";
 import { CountUp, Reveal } from "@/components/motion/reveal";
 import { Section, SectionHeading } from "@/components/site/section";
+import { Avatar } from "@/components/ui/avatar";
 import { LinkButton } from "@/components/ui/button";
-import type { Announcement, Coach, Program, SiteSettings } from "@/lib/db/schema";
+import type { Announcement, Coach, Program, SiteSettings, Testimonial } from "@/lib/db/schema";
 import type { PublicSlot } from "@/lib/content";
 import { capitalize, cn, formatDate, formatINR, formatTime, initials } from "@/lib/utils";
 
@@ -231,7 +233,7 @@ export function Schedule({ slots }: { slots: PublicSlot[] }) {
 export function News({ items }: { items: Announcement[] }) {
   if (items.length === 0) return null;
   return (
-    <Section id="news" className="py-16 sm:py-20">
+    <Section id="news">
       <SectionHeading eyebrow="What's new" title="Academy updates" />
       <div className="grid gap-6 md:grid-cols-3">
         {items.map((a, i) => (
@@ -328,5 +330,32 @@ export function Footer({ settings }: { settings: SiteSettings }) {
         </div>
       </div>
     </footer>
+  );
+}
+
+export function Testimonials({ items }: { items: Testimonial[] }) {
+  if (items.length === 0) return null;
+  return (
+    <Section id="testimonials">
+      <SectionHeading eyebrow="Testimonials" title={<>Heard <span className="text-gradient">on court</span></>} description="Players and parents on what training at the academy feels like." />
+      <div className="columns-1 gap-6 md:columns-2 lg:columns-3">
+        {items.map((t, i) => (
+          <Reveal key={t.id} delay={(i % 3) * 0.06} className="mb-6 break-inside-avoid">
+            <figure className="card-hover glass rounded-3xl p-6">
+              <Quote className="size-6 text-brand/70" />
+              <p className="mt-1 text-amber-300" aria-label={`${t.rating} out of 5 stars`}>{"★".repeat(t.rating)}<span className="text-white/15">{"★".repeat(5 - t.rating)}</span></p>
+              <blockquote className="mt-3 leading-relaxed text-white/75">{t.quote}</blockquote>
+              <figcaption className="mt-5 flex items-center gap-3">
+                <Avatar name={t.name} src={t.photoUrl} className="size-11 text-sm" />
+                <div>
+                  <p className="font-semibold text-white">{t.name}</p>
+                  <p className="text-xs text-white/50">{t.role}</p>
+                </div>
+              </figcaption>
+            </figure>
+          </Reveal>
+        ))}
+      </div>
+    </Section>
   );
 }

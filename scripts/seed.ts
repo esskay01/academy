@@ -10,6 +10,7 @@ import {
   coaches,
   programs,
   siteSettings,
+  testimonials,
   trainingSlots,
   user,
 } from "@/lib/db/schema";
@@ -26,7 +27,7 @@ async function seedAdmin() {
   const [existing] = await db.select().from(user).where(eq(user.email, email));
   if (!existing) {
     await auth.api.signUpEmail({
-      body: { name, email, password, phone: "+91 90000 00000", skillLevel: "professional" },
+      body: { name, email, password, phone: "+919000000000", skillLevel: "professional" },
     });
   }
   await db
@@ -36,7 +37,7 @@ async function seedAdmin() {
   console.log(`• admin ready: ${email}${existing ? " (already existed)" : ""}`);
 }
 
-async function isEmpty(table: typeof coaches | typeof programs | typeof trainingSlots | typeof announcements) {
+async function isEmpty(table: typeof coaches | typeof programs | typeof trainingSlots | typeof announcements | typeof testimonials) {
   const [{ count }] = await db.select({ count: sql<number>`count(*)::int` }).from(table);
   return count === 0;
 }
@@ -145,6 +146,13 @@ async function seedContent() {
       { title: "Summer Camp 2026 registrations open", body: "Four weeks of intensive training for ages 8–16. Limited seats — register and mention 'Summer Camp'.", tag: "Camp" },
       { title: "Inter-academy tournament on 18 October", body: "Singles and doubles categories for U-13, U-17 and Open. Entries close 10 October.", tag: "Tournament" },
       { title: "New synthetic mats on courts 5–8", body: "BWF-approved mats installed for better grip and fewer injuries.", tag: "Facility" },
+    ]);
+  }
+  if (await isEmpty(testimonials)) {
+    await db.insert(testimonials).values([
+      { name: "Meera Kulkarni", role: "Parent of a U-13 player", quote: "My daughter joined as a complete beginner. Eight months later she won her first district medal. The coaches genuinely care.", rating: 5, sortOrder: 1 },
+      { name: "Rohan Patil", role: "Competitor batch", quote: "The video analysis sessions changed my doubles game completely. My rotations are finally automatic.", rating: 5, sortOrder: 2 },
+      { name: "Anita Joshi", role: "Adult Fitness Rally", quote: "Best part of my week. Great workout, friendly group and coaches who correct technique without making you feel slow.", rating: 4, sortOrder: 3 },
     ]);
   }
   console.log("• site content ready");

@@ -7,7 +7,7 @@ import { PageHeader } from "@/components/admin/page-header";
 import { requireAdmin } from "@/lib/dal";
 import { db } from "@/lib/db";
 import { user } from "@/lib/db/schema";
-import { capitalize, formatDate, initials } from "@/lib/utils";
+import { capitalize, formatDate, formatPhone, initials } from "@/lib/utils";
 
 export const metadata: Metadata = { title: "Inbox" };
 
@@ -42,7 +42,7 @@ export default async function InboxPage() {
               </div>
               <dl className="mt-5 grid gap-2 text-sm text-white/70">
                 <div className="flex items-center gap-2"><Mail className="size-4 text-white/40" /><dt className="sr-only">Email</dt><dd className="truncate">{u.email}</dd></div>
-                <div className="flex items-center gap-2"><Phone className="size-4 text-white/40" /><dt className="sr-only">Phone</dt><dd>{u.phone ?? "—"}</dd></div>
+                <div className="flex items-center gap-2"><Phone className="size-4 text-white/40" /><dt className="sr-only">Phone</dt><dd>{formatPhone(u.phone)}</dd></div>
                 <div className="flex items-center gap-2"><Cake className="size-4 text-white/40" /><dt className="sr-only">Date of birth</dt><dd>{formatDate(u.dateOfBirth)}</dd></div>
                 <div className="flex items-center gap-2"><Trophy className="size-4 text-white/40" /><dt className="sr-only">Skill level</dt><dd>{capitalize(u.skillLevel)}</dd></div>
               </dl>

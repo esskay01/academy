@@ -5,12 +5,15 @@ import { PageHeader } from "@/components/admin/page-header";
 import { LinkButton } from "@/components/ui/button";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { requireAdmin } from "@/lib/dal";
+import { expireEndedMemberships } from "@/lib/membership-server";
 import { db } from "@/lib/db";
 import { user } from "@/lib/db/schema";
 import { formatDate, initials } from "@/lib/utils";
 
 export default async function AdminOverviewPage() {
   const session = await requireAdmin();
+  // Layout and page render in parallel, so settle expiries here, before reading statuses.
+  await expireEndedMemberships();
   const [[stats], recent] = await Promise.all([
     db
       .select({

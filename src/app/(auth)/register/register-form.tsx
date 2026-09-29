@@ -6,6 +6,7 @@ import { useState, useTransition } from "react";
 import { z } from "zod";
 import { Button } from "@/components/ui/button";
 import { Input, Select } from "@/components/ui/field";
+import { PhoneInput } from "@/components/ui/phone-input";
 import { authClient } from "@/lib/auth-client";
 import { SKILL_LEVELS } from "@/lib/constants";
 import { capitalize } from "@/lib/utils";
@@ -44,7 +45,7 @@ export function RegisterForm() {
       <Input label="Full name" name="name" autoComplete="name" placeholder="Saina Sharma" error={errors.name} />
       <Input label="Email" name="email" type="email" autoComplete="email" placeholder="you@example.com" error={errors.email} />
       <div className="grid gap-5 sm:grid-cols-2">
-        <Input label="Phone" name="phone" type="tel" autoComplete="tel" placeholder="+91 98765 43210" error={errors.phone} />
+        <PhoneInput error={errors.phone} />
         <Input label="Date of birth" name="dateOfBirth" type="date" error={errors.dateOfBirth} className="[color-scheme:dark]" />
       </div>
       <Select

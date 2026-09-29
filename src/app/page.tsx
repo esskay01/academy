@@ -9,6 +9,7 @@ import {
   Programs,
   Schedule,
   StatsBand,
+  Testimonials,
 } from "@/components/site/sections";
 import { getPublicContent } from "@/lib/content";
 import { getSession } from "@/lib/dal";
@@ -39,6 +40,7 @@ export default async function HomePage() {
           title={settings.heroTitle}
           subtitle={settings.heroSubtitle}
           students={settings.studentsCount}
+          members={content.recentMembers}
           courts={settings.courtsCount}
         />
         <StatsBand settings={settings} />
@@ -46,6 +48,7 @@ export default async function HomePage() {
         <Programs programs={content.programs} />
         <Coaches coaches={content.coaches} />
         <Schedule slots={content.slots} />
+        <Testimonials items={content.testimonials} />
         <News items={content.announcements} />
         <Contact settings={settings} />
       </main>

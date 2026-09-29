@@ -31,8 +31,12 @@ docker compose up -d --build                           # db → migrate+seed (on
 APP_PORT=3100 DB_PORT=5433 docker compose up -d        # if 3000/5432 are taken on this machine
 docker compose --profile dev up dev                    # hot-reload dev server (source bind-mounted)
 docker compose --profile test run --rm unit            # Vitest
-docker compose --profile test run --rm --build e2e     # Playwright vs the production `app` container
-docker compose --profile test run --rm e2e npx playwright test -g "rejecting"   # single e2e test
+# E2E: run as a SEPARATE compose project (-p) so tests get their own throwaway DB — the suite
+# creates users/coaches/slots and would otherwise pollute the live site. Different host ports too.
+export APP_PORT=3200 DB_PORT=5434
+docker compose -p bajrang-e2e --profile test run --rm --build e2e                 # full suite
+docker compose -p bajrang-e2e --profile test run --rm e2e npx playwright test -g "rejecting"   # single test
+docker compose -p bajrang-e2e down -v                                            # discard test DB
 docker compose down -v                                 # stop and wipe the database
 ```
 
@@ -64,7 +68,7 @@ Default admin (compose defaults): `admin@bajrang.academy` / `Admin@12345`.
 
 Per-entity forms are in `components/admin/forms.tsx`, and their list/edit UIs in `components/admin/managers.tsx`. Those are client components because they take render-function props, which Server Components can't pass.
 
-**Public content** (`site_settings` single row with `id = 1`, `coaches`, `training_slots`, `programs`, `announcements`) is read through `src/lib/content.ts`. It calls `connection()`, so pages render per request, admin edits appear immediately, and `next build` never touches the database. Cache Components is not enabled.
+**Public content** (`site_settings` single row with `id = 1`, `coaches`, `training_slots`, `programs`, `announcements`, `testimonials`, plus the 4 most recently approved non-admin members for the hero — exposed only as short name, photo, level and join date) is read through `src/lib/content.ts`. It calls `connection()`, so pages render per request, admin edits appear immediately, and `next build` never touches the database. Cache Components is not enabled.
 
 **Client/server boundary.** Shared enums live in dependency-free `src/lib/constants.ts`. Client code must import from there, not from `db/schema.ts`, which would pull Drizzle into the bundle. `schema.ts` imports it relatively because drizzle-kit loads that file without the `@/` alias.
 
@@ -73,6 +77,24 @@ Per-entity forms are in `components/admin/forms.tsx`, and their list/edit UIs in
 - `runner` — the standalone server, non-root. Its healthcheck hits `/api/auth/ok`.
 
 `e2e/Dockerfile` is the Playwright image and must match the `@playwright/test` version. The e2e container reaches the app at `http://academy-web:3000` (a network alias — Chromium force-upgrades `http://app:…` to HTTPS because `.app` is an HSTS-preloaded TLD), so that origin is listed in `BETTER_AUTH_TRUSTED_ORIGINS`.
+
+**Uploads.** Member and testimonial photos are stored in Postgres (`media` table, a `bytea` custom type because drizzle-orm 0.45 has none) and served by `src/app/media/[id]/route.ts` with immutable caching. Each upload gets a new id. `src/lib/media.ts` validates by magic bytes (JPEG, PNG or WebP, max 2 MB), not by the client MIME type. `serverActions.bodySizeLimit` is 3 MB for this. Replacing or removing a photo deletes the old `media` row.
+
+**Phones.** Member mobile numbers are entered as 10 digits with a fixed `+91` prefix (`PhoneInput`) and stored as `+91XXXXXXXXXX`, also enforced in the sign-up hook. The academy's own contact phone in `site_settings` stays free-form.
+
+**Memberships & payments** (`memberships` table, admin UI on `/admin/members/[id]`, member view on `/dashboard`). The date and payment rules live in pure `src/lib/membership.ts`, which is unit-tested:
+- `end_date` = start + months + days − 1 (last day, inclusive), computed server-side only.
+- "Today" is the India calendar date (`academyToday`).
+- Payment status is derived from `fee` vs `amount_paid`, never stored.
+
+Status follows memberships:
+- `expireEndedMemberships()` (`src/lib/membership-server.ts`) marks non-admin members inactive once all their memberships have ended. It runs every 15 min from `src/instrumentation.ts`, after membership saves, and at the start of the dashboard and admin overview/members pages. Those pages call it themselves because a layout renders in parallel with its page.
+- Saving a current or upcoming membership re-activates an *inactive* member (pending sign-ups are left alone).
+- Manually activating a member whose memberships have all ended is refused.
+
+Pages that run DB work before any request API must call `connection()` first. Otherwise `next build` tries to prerender them without a database; this broke the build once.
+
+**Members admin.** The list is paginated (`?size=` must be a multiple of 10 from 10 to 100, default 50; `?page=`). Only `inactive` members can be permanently deleted. Sessions and accounts cascade.
 
 ## Gotchas
 

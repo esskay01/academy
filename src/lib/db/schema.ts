@@ -1,5 +1,7 @@
 import {
   boolean,
+  customType,
+  date,
   index,
   integer,
   pgTable,
@@ -184,7 +186,60 @@ export const announcements = pgTable("announcements", {
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
+export const testimonials = pgTable("testimonials", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull(),
+  role: text("role").notNull(),
+  quote: text("quote").notNull(),
+  rating: integer("rating").notNull().default(5),
+  photoUrl: text("photo_url"),
+  isPublished: boolean("is_published").notNull().default(true),
+  sortOrder: integer("sort_order").notNull().default(0),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+/**
+ * A member's paid-for program period. `end_date` is computed server-side from
+ * start + duration (see src/lib/membership.ts) and never taken from the client.
+ * Payment status is derived from fee vs amount_paid.
+ */
+export const memberships = pgTable(
+  "memberships",
+  {
+    id: serial("id").primaryKey(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    programId: integer("program_id").references(() => programs.id, { onDelete: "set null" }),
+    // Snapshot, so history survives renaming or deleting the program.
+    programName: text("program_name").notNull(),
+    fee: integer("fee").notNull(),
+    amountPaid: integer("amount_paid").notNull().default(0),
+    startDate: date("start_date").notNull(),
+    durationMonths: integer("duration_months").notNull().default(0),
+    durationDays: integer("duration_days").notNull().default(0),
+    endDate: date("end_date").notNull(),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+  },
+  (t) => [index("memberships_user_id_idx").on(t.userId), index("memberships_end_date_idx").on(t.endDate)],
+);
+
+// drizzle-orm 0.45 has no built-in bytea column; node-postgres returns Buffers.
+const bytea = customType<{ data: Buffer; driverData: Buffer }>({
+  dataType: () => "bytea",
+});
+
+/** Uploaded images (member photos, testimonial photos), served by /media/[id]. */
+export const media = pgTable("media", {
+  id: text("id").primaryKey(),
+  contentType: text("content_type").notNull(),
+  data: bytea("data").notNull(),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
 export type User = typeof user.$inferSelect;
+export type Testimonial = typeof testimonials.$inferSelect;
+export type Membership = typeof memberships.$inferSelect;
 export type SiteSettings = typeof siteSettings.$inferSelect;
 export type Coach = typeof coaches.$inferSelect;
 export type TrainingSlot = typeof trainingSlots.$inferSelect;

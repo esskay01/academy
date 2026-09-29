@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { connection } from "next/server";
 import {
   CalendarDays,
   CheckCircle2,
@@ -16,11 +17,15 @@ import {
 import { Logo } from "@/components/brand/logo";
 import { Reveal } from "@/components/motion/reveal";
 import { SignOutButton } from "@/components/sign-out-button";
+import { Avatar } from "@/components/ui/avatar";
 import { LinkButton } from "@/components/ui/button";
 import { RoleBadge, StatusBadge } from "@/components/ui/status-badge";
+import { FeeMeters, MembershipTimeCard } from "@/components/membership/membership-charts";
 import { getPublicContent } from "@/lib/content";
+import { academyToday } from "@/lib/membership";
+import { expireEndedMemberships, getMemberships } from "@/lib/membership-server";
 import { isAdmin, requireUser } from "@/lib/dal";
-import { capitalize, cn, formatDate, formatTime, initials } from "@/lib/utils";
+import { capitalize, cn, formatDate, formatINR, formatPhone, formatTime } from "@/lib/utils";
 
 export const metadata: Metadata = { title: "My dashboard" };
 
@@ -46,6 +51,10 @@ const statusCopy = {
 } as const;
 
 export default async function DashboardPage(props: PageProps<"/dashboard">) {
+  // Request-time only (never prerendered at build), then settle expired
+  // memberships so the status shown below is current.
+  await connection();
+  await expireEndedMemberships();
   const [session, content, { welcome }] = await Promise.all([
     requireUser(),
     getPublicContent(),
@@ -56,11 +65,20 @@ export default async function DashboardPage(props: PageProps<"/dashboard">) {
   const status = (rawStatus in statusCopy ? rawStatus : "inactive") as keyof typeof statusCopy;
   const copy = statusCopy[status];
   const settings = content.settings;
+  const today = academyToday();
+  const history = await getMemberships(user.id);
+  // Show the running plan, else the next upcoming one, else the latest.
+  const current =
+    history.find((m) => m.startDate <= today && m.endDate >= today) ??
+    history.filter((m) => m.startDate > today).at(-1) ??
+    history[0];
+  const totalPaid = history.reduce((sum, m) => sum + m.amountPaid, 0);
+  const totalDue = history.reduce((sum, m) => sum + Math.max(0, m.fee - m.amountPaid), 0);
 
   const details = [
     { icon: UserRound, label: "Full name", value: user.name },
     { icon: Mail, label: "Email", value: user.email },
-    { icon: Phone, label: "Phone", value: user.phone ?? "—" },
+    { icon: Phone, label: "Phone", value: formatPhone(user.phone) },
     { icon: Cake, label: "Date of birth", value: formatDate(user.dateOfBirth) },
     { icon: Trophy, label: "Skill level", value: capitalize(user.skillLevel ?? "beginner") },
     { icon: CalendarDays, label: "Member since", value: formatDate(user.createdAt) },
@@ -98,9 +116,7 @@ export default async function DashboardPage(props: PageProps<"/dashboard">) {
 
         <Reveal>
           <div className="flex flex-wrap items-center gap-5">
-            <span className="font-display grid size-20 place-items-center rounded-3xl bg-gradient-to-br from-brand to-cyan-400 text-3xl font-extrabold text-ink shadow-[0_0_40px_-10px] shadow-brand">
-              {initials(user.name)}
-            </span>
+            <Avatar name={user.name} src={user.image} className="font-display size-20 rounded-3xl text-3xl font-extrabold shadow-[0_0_40px_-10px] shadow-brand" />
             <div>
               <p className="text-sm text-white/50">Hello,</p>
               <h1 className="font-display flex flex-wrap items-center gap-3 text-4xl font-bold text-white">
@@ -121,7 +137,11 @@ export default async function DashboardPage(props: PageProps<"/dashboard">) {
                 <h2 className="font-display mt-4 text-2xl font-bold text-white" data-testid="status-title">
                   {copy.title}
                 </h2>
-                <p className="mt-2 text-white/60">{copy.text}</p>
+                <p className="mt-2 text-white/60">
+                  {status === "inactive" && current && current.endDate < today
+                    ? `Your ${current.programName} membership ended on ${formatDate(current.endDate)}. Renew at the front desk to become active again.`
+                    : copy.text}
+                </p>
 
                 <ol className="mt-8 grid grid-cols-3 gap-2">
                   {steps.map((s, i) => (
@@ -158,6 +178,35 @@ export default async function DashboardPage(props: PageProps<"/dashboard">) {
             </section>
           </Reveal>
         </div>
+
+        <Reveal delay={0.12}>
+          <section className="mt-10" aria-labelledby="membership-heading">
+            <h2 id="membership-heading" className="font-display text-2xl font-bold text-white">My membership</h2>
+            {current ? (
+              <div className="mt-5 grid gap-6 lg:grid-cols-2">
+                <div className="glass rounded-3xl p-7">
+                  <MembershipTimeCard m={current} today={today} />
+                </div>
+                <div className="glass rounded-3xl p-7">
+                  <div className="flex flex-wrap items-baseline justify-between gap-2">
+                    <p className="text-xs font-semibold tracking-wider text-white/45 uppercase">Fees by program</p>
+                    <p className="text-sm text-white/60">
+                      Paid <span className="font-semibold text-white">{formatINR(totalPaid)}</span>
+                      {totalDue > 0 && <> · Due <span className="font-semibold text-white">{formatINR(totalDue)}</span></>}
+                    </p>
+                  </div>
+                  <div className="mt-5">
+                    <FeeMeters items={history} />
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <p className="glass mt-5 rounded-3xl p-6 text-white/60">
+                No membership recorded yet. Once you pay for a program, the academy records it here with your dates and days left.
+              </p>
+            )}
+          </section>
+        </Reveal>
 
         {status === "active" ? (
           <Reveal delay={0.15}>

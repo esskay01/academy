@@ -8,11 +8,15 @@ import {
   saveProgram,
   saveSettings,
   saveSlot,
+  saveTestimonial,
+  updateMember,
 } from "@/app/admin/actions";
 import { AdminForm } from "@/components/admin/admin-form";
 import { Checkbox, Input, Select, Textarea } from "@/components/ui/field";
+import { ImageInput } from "@/components/ui/image-input";
+import { PhoneInput } from "@/components/ui/phone-input";
 import { SKILL_LEVELS } from "@/lib/constants";
-import type { Announcement, Coach, Program, SiteSettings, TrainingSlot } from "@/lib/db/schema";
+import type { Announcement, Coach, Program, SiteSettings, Testimonial, TrainingSlot, User } from "@/lib/db/schema";
 import { capitalize } from "@/lib/utils";
 
 type WithDone = { onDone?: () => void };
@@ -181,7 +185,7 @@ export function CreateAdminForm() {
           <div className="grid gap-4 sm:grid-cols-2">
             <Input id="new-admin-name" label="Full name" name="name" error={e.name} />
             <Input id="new-admin-email" label="Email" name="email" type="email" error={e.email} />
-            <Input id="new-admin-phone" label="Phone" name="phone" type="tel" error={e.phone} />
+            <PhoneInput id="new-admin-phone" error={e.phone} />
             <Input id="new-admin-password" label="Temporary password" name="password" type="password" autoComplete="new-password" error={e.password} />
           </div>
         </>
@@ -204,5 +208,57 @@ function Group({ title, children }: { title: string; children: React.ReactNode }
       <legend className="mb-4 text-sm font-semibold tracking-wider text-brand uppercase">{title}</legend>
       {children}
     </fieldset>
+  );
+}
+
+export function MemberEditForm({ member }: { member: Pick<User, "id" | "name" | "email" | "phone" | "dateOfBirth" | "skillLevel" | "image"> }) {
+  return (
+    <AdminForm action={updateMember} submitLabel="Save member">
+      {(e) => (
+        <>
+          <input type="hidden" name="userId" value={member.id} />
+          <ImageInput id="member-photo" label="Student photo" currentUrl={member.image} fallbackName={member.name} error={e.photo} />
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Input label="Full name" name="name" defaultValue={member.name} error={e.name} />
+            <Input label="Email" name="email" type="email" defaultValue={member.email} error={e.email} />
+            <PhoneInput defaultValue={member.phone} error={e.phone} />
+            <Input label="Date of birth" name="dateOfBirth" type="date" defaultValue={member.dateOfBirth ?? ""} error={e.dateOfBirth} className="[color-scheme:dark]" />
+            <Select label="Skill level" name="skillLevel" defaultValue={member.skillLevel} options={levelOptions} error={e.skillLevel} />
+          </div>
+        </>
+      )}
+    </AdminForm>
+  );
+}
+
+export function TestimonialForm({ item, onDone }: { item?: Testimonial } & WithDone) {
+  const p = item ? `tst-${item.id}-` : "tst-new-";
+  return (
+    <AdminForm action={saveTestimonial} submitLabel={item ? "Save testimonial" : "Add testimonial"} resetOnSuccess={!item} onSuccess={onDone}>
+      {(e) => (
+        <>
+          {item && <input type="hidden" name="id" value={item.id} />}
+          <ImageInput id={`${p}photo`} currentUrl={item?.photoUrl} fallbackName={item?.name ?? "New"} error={e.photo} />
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Input id={`${p}name`} label="Name" name="name" defaultValue={item?.name} error={e.name} />
+            <Input id={`${p}role`} label="Who they are" name="role" defaultValue={item?.role} placeholder="Parent of a U-13 player" error={e.role} />
+          </div>
+          <Textarea id={`${p}quote`} label="Testimonial" name="quote" rows={3} defaultValue={item?.quote} error={e.quote} />
+          <div className="flex flex-wrap items-end gap-6">
+            <Select
+              id={`${p}rating`}
+              label="Rating"
+              name="rating"
+              defaultValue={String(item?.rating ?? 5)}
+              options={[5, 4, 3, 2, 1].map((n) => ({ value: String(n), label: "★".repeat(n) }))}
+              error={e.rating}
+              fieldClassName="w-32"
+            />
+            <Input id={`${p}order`} label="Display order" name="sortOrder" type="number" min={0} defaultValue={item?.sortOrder ?? 0} error={e.sortOrder} fieldClassName="w-32" />
+            <Checkbox label="Published on website" name="isPublished" defaultChecked={item?.isPublished ?? true} />
+          </div>
+        </>
+      )}
+    </AdminForm>
   );
 }

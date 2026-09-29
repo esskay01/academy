@@ -7,6 +7,12 @@ const nextConfig: NextConfig = {
     // Coach photos are admin-supplied URLs from any HTTPS host.
     remotePatterns: [{ protocol: "https", hostname: "**" }],
   },
+  experimental: {
+    serverActions: {
+      // Photo uploads are capped at 2 MB (src/lib/media.ts) plus form fields.
+      bodySizeLimit: "3mb",
+    },
+  },
 };
 
 export default nextConfig;

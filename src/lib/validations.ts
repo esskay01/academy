@@ -1,12 +1,25 @@
 import { z } from "zod";
 import { SKILL_LEVELS } from "@/lib/constants";
 
+/** Free-form contact number (the academy's own phone on the website). */
 const phone = z
   .string()
   .trim()
   .regex(/^\+?[0-9][0-9\s-]{8,16}[0-9]$/, {
     error: "Enter a valid phone number",
   });
+
+// Member mobile numbers: the +91 country code is fixed in the UI, so forms
+// submit exactly 10 digits and we store them as "+91XXXXXXXXXX".
+export const MOBILE_PREFIX = "+91";
+const mobileDigits = z
+  .string()
+  .trim()
+  .regex(/^\d{10}$/, { error: "Enter your 10-digit mobile number" });
+const mobileFromForm = mobileDigits.transform((d) => `${MOBILE_PREFIX}${d}`);
+const storedMobile = z
+  .string()
+  .regex(/^\+91\d{10}$/, { error: "Phone must be a 10-digit number with +91" });
 
 const dateOfBirth = z
   .string()
@@ -21,7 +34,7 @@ const skillLevel = z.enum(SKILL_LEVELS, { error: "Pick a skill level" });
 
 /** Server-side check for the academy fields Better Auth receives on sign-up. */
 export const registrationExtrasSchema = z.object({
-  phone,
+  phone: storedMobile,
   dateOfBirth: z
     .union([z.literal(""), dateOfBirth])
     .nullish()
@@ -33,7 +46,7 @@ export const registerFormSchema = z
   .object({
     name: z.string().trim().min(2, { error: "Tell us your full name" }).max(80),
     email: z.email({ error: "Enter a valid email" }),
-    phone,
+    phone: mobileFromForm,
     dateOfBirth,
     skillLevel,
     password: z.string().min(8, { error: "At least 8 characters" }).max(128),
@@ -177,9 +190,66 @@ export const settingsSchema = z.object({
 export const createAdminSchema = z.object({
   name: text("Name", 80),
   email: z.email({ error: "Enter a valid email" }),
-  phone,
+  phone: mobileFromForm,
   password: z.string().min(8, { error: "At least 8 characters" }).max(128),
 });
+
+export const memberEditSchema = z.object({
+  name: text("Name", 80),
+  email: z.email({ error: "Enter a valid email" }).transform((e) => e.toLowerCase()),
+  phone: mobileFromForm,
+  dateOfBirth: z
+    .union([z.literal(""), dateOfBirth])
+    .optional()
+    .transform((v) => v || null),
+  skillLevel,
+  removePhoto: checkbox,
+});
+
+export const testimonialSchema = z.object({
+  name: text("Name", 80),
+  role: text("Who they are", 80),
+  quote: text("Testimonial", 600),
+  rating: int("Rating", 1, 5),
+  sortOrder: int("Order", 0, 1000),
+  isPublished: checkbox,
+  removePhoto: checkbox,
+});
+
+export const membershipSchema = z
+  .object({
+    programId: z.coerce.number({ error: "Pick a program" }).int().positive({ error: "Pick a program" }),
+    fee: int("Fee", 0, 10_000_000),
+    amountPaid: int("Amount paid", 0, 10_000_000),
+    startDate: z
+      .string()
+      .regex(/^\d{4}-\d{2}-\d{2}$/, { error: "Pick a start date" })
+      .refine((v) => !Number.isNaN(Date.parse(`${v}T00:00:00Z`)), "Pick a valid start date"),
+    durationMonths: int("Months", 0, 60),
+    durationDays: int("Days", 0, 365),
+  })
+  .refine((v) => v.durationMonths + v.durationDays > 0, {
+    path: ["durationDays"],
+    error: "Duration must be at least 1 day",
+  })
+  .refine((v) => v.amountPaid <= v.fee, {
+    path: ["amountPaid"],
+    error: "Amount paid can't exceed the fee",
+  });
+
+export const PAGE_SIZES =[10, 20, 30, 40, 50, 60, 70, 80, 90, 100] as const;
+export const DEFAULT_PAGE_SIZE = 50;
+
+/** Page size must be a multiple of 10 (min 10, max 100); anything else → 50. */
+export function parsePageSize(raw: unknown) {
+  const n = Number(raw);
+  return (PAGE_SIZES as readonly number[]).includes(n) ? n : DEFAULT_PAGE_SIZE;
+}
+
+export function parsePage(raw: unknown) {
+  const n = Number(raw);
+  return Number.isInteger(n) && n >= 1 ? n : 1;
+}
 
 export const promoteByEmailSchema = z.object({
   email: z.email({ error: "Enter a valid email" }),

@@ -8,6 +8,20 @@
       "when": 1790591118471,
       "tag": "0000_init",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1790598309920,
+      "tag": "0001_members_media_testimonials",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1790605699455,
+      "tag": "0002_memberships",
+      "breakpoints": true
     }
   ]
 }

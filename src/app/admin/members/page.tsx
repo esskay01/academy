@@ -1,16 +1,29 @@
-import { and, desc, eq, ilike, or, type SQL } from "drizzle-orm";
-import { Search } from "lucide-react";
+import { and, count, desc, eq, ilike, inArray, or, type SQL } from "drizzle-orm";
+import { ChevronLeft, ChevronRight, Pencil, Search } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
-import { activateUser, approveUser, deactivateUser, rejectUser, setAdminRole } from "@/app/admin/actions";
+import {
+  activateUser,
+  approveUser,
+  deactivateUser,
+  deleteMember,
+  rejectUser,
+  setAdminRole,
+} from "@/app/admin/actions";
 import { ActionButton } from "@/components/admin/action-button";
 import { PageHeader } from "@/components/admin/page-header";
+import { PageSizeSelect } from "@/components/admin/page-size-select";
+import { Avatar } from "@/components/ui/avatar";
+import { buttonClass } from "@/components/ui/button";
 import { inputClass } from "@/components/ui/field";
 import { RoleBadge, StatusBadge } from "@/components/ui/status-badge";
 import { requireAdmin } from "@/lib/dal";
+import { expireEndedMemberships } from "@/lib/membership-server";
 import { db } from "@/lib/db";
-import { user, USER_STATUSES, type UserStatus } from "@/lib/db/schema";
-import { capitalize, cn, formatDate } from "@/lib/utils";
+import { memberships, user, USER_STATUSES, type Membership, type UserStatus } from "@/lib/db/schema";
+import { academyToday, membershipProgress } from "@/lib/membership";
+import { capitalize, cn, formatDate, formatPhone } from "@/lib/utils";
+import { parsePage, parsePageSize } from "@/lib/validations";
 
 export const metadata: Metadata = { title: "Members" };
 
@@ -18,9 +31,12 @@ const filters = [{ value: "", label: "All" }, ...USER_STATUSES.map((s) => ({ val
 
 export default async function MembersPage(props: PageProps<"/admin/members">) {
   const session = await requireAdmin();
-  const { q, status } = await props.searchParams;
-  const query = typeof q === "string" ? q.trim() : "";
-  const statusFilter = USER_STATUSES.includes(status as UserStatus) ? (status as UserStatus) : undefined;
+  // Layout and page render in parallel, so settle expiries here, before reading statuses.
+  await expireEndedMemberships();
+  const sp = await props.searchParams;
+  const query = typeof sp.q === "string" ? sp.q.trim() : "";
+  const statusFilter = USER_STATUSES.includes(sp.status as UserStatus) ? (sp.status as UserStatus) : undefined;
+  const size = parsePageSize(sp.size);
 
   const conditions: SQL[] = [];
   if (statusFilter) conditions.push(eq(user.status, statusFilter));
@@ -28,28 +44,50 @@ export default async function MembersPage(props: PageProps<"/admin/members">) {
     const pattern = `%${query.replace(/[%_\\]/g, "\\$&")}%`;
     conditions.push(or(ilike(user.name, pattern), ilike(user.email, pattern), ilike(user.phone, pattern))!);
   }
+  const where = conditions.length ? and(...conditions) : undefined;
+
+  const [{ total }] = await db.select({ total: count() }).from(user).where(where);
+  const pageCount = Math.max(1, Math.ceil(total / size));
+  const page = Math.min(parsePage(sp.page), pageCount);
   const members = await db
     .select()
     .from(user)
-    .where(conditions.length ? and(...conditions) : undefined)
-    .orderBy(desc(user.createdAt))
-    .limit(300);
+    .where(where)
+    .orderBy(desc(user.createdAt), desc(user.id))
+    .limit(size)
+    .offset((page - 1) * size);
 
-  const hrefFor = (s: string) => {
+  // Current (or latest) membership per listed member, for the Membership column.
+  const today = academyToday();
+  const planRows = members.length
+    ? await db.select().from(memberships).where(inArray(memberships.userId, members.map((m) => m.id))).orderBy(desc(memberships.startDate))
+    : [];
+  const planFor = (userId: string): Membership | undefined => {
+    const own = planRows.filter((p) => p.userId === userId);
+    return own.find((p) => p.startDate <= today && p.endDate >= today) ?? own[0];
+  };
+
+  const hrefFor = (next: { status?: string; page?: number }) => {
     const params = new URLSearchParams();
     if (query) params.set("q", query);
-    if (s) params.set("status", s);
+    const status = next.status ?? statusFilter ?? "";
+    if (status) params.set("status", status);
+    if (size !== 50) params.set("size", String(size));
+    if (next.page && next.page > 1) params.set("page", String(next.page));
     const str = params.toString();
     return `/admin/members${str ? `?${str}` : ""}`;
   };
+  const from = total === 0 ? 0 : (page - 1) * size + 1;
+  const to = Math.min(page * size, total);
 
   return (
     <>
-      <PageHeader title="Members" description="Everyone registered with the academy. Activate, deactivate or promote members." />
+      <PageHeader title="Members" description="Everyone registered with the academy. Edit, activate, deactivate or promote members." />
 
       <div className="mb-6 flex flex-wrap items-center gap-3">
-        <form className="relative min-w-64 flex-1" action="/admin/members">
+        <form className="relative min-w-56 flex-1" action="/admin/members">
           {statusFilter && <input type="hidden" name="status" value={statusFilter} />}
+          {size !== 50 && <input type="hidden" name="size" value={size} />}
           <Search className="pointer-events-none absolute top-1/2 left-3.5 size-4 -translate-y-1/2 text-white/35" />
           <input name="q" defaultValue={query} placeholder="Search name, email or phone…" className={cn(inputClass, "pl-10")} aria-label="Search members" />
         </form>
@@ -57,7 +95,7 @@ export default async function MembersPage(props: PageProps<"/admin/members">) {
           {filters.map((f) => (
             <Link
               key={f.value}
-              href={hrefFor(f.value)}
+              href={hrefFor({ status: f.value })}
               className={cn(
                 "rounded-lg px-3 py-1.5 text-xs font-semibold transition",
                 (statusFilter ?? "") === f.value ? "bg-brand text-ink" : "text-white/60 hover:text-white",
@@ -70,13 +108,14 @@ export default async function MembersPage(props: PageProps<"/admin/members">) {
       </div>
 
       <div className="glass overflow-x-auto rounded-3xl">
-        <table className="w-full min-w-[720px] text-left text-sm">
+        <table className="w-full min-w-[1100px] text-left text-sm">
           <thead className="border-b border-white/10 text-xs tracking-wider text-white/45 uppercase">
             <tr>
               <th className="px-5 py-4 font-medium">Member</th>
-              <th className="px-5 py-4 font-medium">Phone</th>
+              <th className="px-5 py-4 font-medium whitespace-nowrap">Phone</th>
               <th className="px-5 py-4 font-medium">Level</th>
               <th className="px-5 py-4 font-medium">Joined</th>
+              <th className="px-5 py-4 font-medium">Membership</th>
               <th className="px-5 py-4 font-medium">Status</th>
               <th className="px-5 py-4 text-right font-medium">Actions</th>
             </tr>
@@ -84,25 +123,34 @@ export default async function MembersPage(props: PageProps<"/admin/members">) {
           <tbody className="divide-y divide-white/5">
             {members.length === 0 && (
               <tr>
-                <td colSpan={6} className="px-5 py-12 text-center text-white/45">No members match.</td>
+                <td colSpan={7} className="px-5 py-12 text-center text-white/45">No members match.</td>
               </tr>
             )}
             {members.map((m) => {
               const self = m.id === session.user.id;
               return (
-                <tr key={m.id} data-testid="member-row" className="transition hover:bg-white/[0.02]">
-                  <td className="px-5 py-4">
-                    <p className="flex items-center gap-2 font-medium text-white">
-                      {m.name} <RoleBadge role={m.role} /> {self && <span className="text-xs text-white/40">(you)</span>}
-                    </p>
-                    <p className="text-xs text-white/45">{m.email}</p>
+                <tr key={m.id} data-testid="member-row" className="align-middle transition hover:bg-white/[0.02]">
+                  <td className="min-w-64 px-5 py-4">
+                    <div className="flex items-center gap-3">
+                      <Avatar name={m.name} src={m.image} className="size-9 text-xs" />
+                      <div className="min-w-0">
+                        <p className="flex flex-wrap items-center gap-2 font-medium text-white">
+                          {m.name} <RoleBadge role={m.role} /> {self && <span className="text-xs text-white/40">(you)</span>}
+                        </p>
+                        <p className="max-w-56 truncate text-xs text-white/45" title={m.email}>{m.email}</p>
+                      </div>
+                    </div>
                   </td>
-                  <td className="px-5 py-4 text-white/70">{m.phone ?? "—"}</td>
+                  <td className="px-5 py-4 whitespace-nowrap text-white/70">{formatPhone(m.phone)}</td>
                   <td className="px-5 py-4 text-white/70">{capitalize(m.skillLevel)}</td>
-                  <td className="px-5 py-4 text-white/70">{formatDate(m.createdAt)}</td>
+                  <td className="px-5 py-4 whitespace-nowrap text-white/70">{formatDate(m.createdAt)}</td>
+                  <td className="px-5 py-4 whitespace-nowrap"><PlanCell plan={planFor(m.id)} today={today} /></td>
                   <td className="px-5 py-4"><StatusBadge status={m.status} /></td>
                   <td className="px-5 py-4">
-                    <div className="flex justify-end gap-2">
+                    <div className="flex flex-wrap justify-end gap-2">
+                      <Link href={`/admin/members/${m.id}`} className={buttonClass("ghost", "sm")}>
+                        <Pencil className="size-3.5" /> Edit
+                      </Link>
                       {m.status === "pending" && (
                         <>
                           <ActionButton action={approveUser.bind(null, m.id)} variant="success">Approve</ActionButton>
@@ -113,9 +161,13 @@ export default async function MembersPage(props: PageProps<"/admin/members">) {
                         <ActionButton action={deactivateUser.bind(null, m.id)} variant="danger" confirm="Confirm deactivate">Mark inactive</ActionButton>
                       )}
                       {m.status === "inactive" && (
-                        <ActionButton action={activateUser.bind(null, m.id)} variant="success">Activate</ActionButton>
+                        <>
+                          <ActionButton action={activateUser.bind(null, m.id)} variant="success">Activate</ActionButton>
+                          <ActionButton action={deleteMember.bind(null, m.id)} variant="danger" confirm="Delete forever?">Delete</ActionButton>
+                        </>
                       )}
                       {!self &&
+                        m.status !== "inactive" &&
                         (m.role === "admin" ? (
                           <ActionButton action={setAdminRole.bind(null, m.id, false)} variant="ghost" confirm="Confirm remove">Remove admin</ActionButton>
                         ) : (
@@ -129,6 +181,48 @@ export default async function MembersPage(props: PageProps<"/admin/members">) {
           </tbody>
         </table>
       </div>
+
+      <nav aria-label="Pagination" className="mt-5 flex flex-wrap items-center justify-between gap-4 text-sm text-white/55">
+        <p data-testid="pagination-summary">
+          Showing {from}–{to} of {total}
+        </p>
+        <div className="flex items-center gap-4">
+          <PageSizeSelect value={size} />
+          <div className="flex items-center gap-1">
+            <PageLink href={hrefFor({ page: page - 1 })} disabled={page <= 1} label="Previous page">
+              <ChevronLeft className="size-4" />
+            </PageLink>
+            <span className="px-2 text-white/70">
+              Page {page} of {pageCount}
+            </span>
+            <PageLink href={hrefFor({ page: page + 1 })} disabled={page >= pageCount} label="Next page">
+              <ChevronRight className="size-4" />
+            </PageLink>
+          </div>
+        </div>
+      </nav>
     </>
+  );
+}
+
+function PageLink({ href, disabled, label, children }: { href: string; disabled: boolean; label: string; children: React.ReactNode }) {
+  const cls = "grid size-8 place-items-center rounded-lg border border-white/10";
+  return disabled ? (
+    <span aria-disabled className={cn(cls, "opacity-30")}>{children}</span>
+  ) : (
+    <Link href={href} aria-label={label} className={cn(cls, "text-white hover:bg-white/10")}>{children}</Link>
+  );
+}
+
+function PlanCell({ plan, today }: { plan?: Membership; today: string }) {
+  if (!plan) return <span className="text-white/35">—</span>;
+  const p = membershipProgress(plan.startDate, plan.endDate, today);
+  return (
+    <div>
+      <p className="text-white/80">{plan.programName}</p>
+      <p className={cn("text-xs", p.phase === "completed" ? "text-rose-300" : p.daysLeft <= 7 && p.phase === "active" ? "text-amber-200" : "text-white/45")}>
+        {p.phase === "active" ? `${p.daysLeft} days left` : p.phase === "upcoming" ? `Starts in ${p.daysUntilStart} days` : `Ended ${formatDate(plan.endDate)}`}
+      </p>
+    </div>
   );
 }
