@@ -768,6 +768,47 @@ test("ID card: member ID on approval, no card without photo, CR80 PDF, QR verifi
   await anon.close();
 });
 
+test("members upload and change their own photo from the dashboard", async ({ page }) => {
+  await register(page, `Selfie ${uniqueWord()}`, `selfie-${unique()}@test.dev`);
+  const photo = page.locator("#my-photo");
+  await expect(page.getByText("Upload photo")).toBeVisible();
+
+  // Non-images are rejected by content.
+  await photo.setInputFiles({ name: "fake.png", mimeType: "image/png", buffer: Buffer.from("<html>nope</html>") });
+  await page.getByRole("button", { name: "Save photo" }).click();
+  await expect(page.getByText("Use a JPG, PNG or WebP image.").first()).toBeVisible();
+
+  await photo.setInputFiles({ name: "me.png", mimeType: "image/png", buffer: PNG });
+  await page.getByRole("button", { name: "Save photo" }).click();
+  await expect(page.getByText("Your photo was updated.")).toBeVisible();
+  await page.reload();
+  // Persisted: the header avatar is now the uploaded image, and the button offers to change it.
+  await expect(page.locator('main img[src^="/media/"], main img[srcset*="%2Fmedia%2F"]').first()).toBeVisible();
+  await expect(page.getByText("Change photo")).toBeVisible();
+  await expect(page.getByText("Remove current photo")).toHaveCount(0);
+});
+
+test("clicking a member in the list shows their details read-only", async ({ page }) => {
+  const email = `viewme-${unique()}@test.dev`;
+  const name = `View ${uniqueWord()}`;
+  await register(page, name, email);
+  await loginAdmin(page);
+  await page.goto(`/admin/members?q=${encodeURIComponent(email)}`);
+  await memberRow(page, email).getByRole("link", { name }).click();
+  await page.waitForURL(/\/admin\/members\/[^/]+\/view$/);
+
+  await expect(page.getByRole("heading", { name, level: 1 })).toBeVisible();
+  const details = page.getByTestId("member-details");
+  await expect(details).toContainText(email);
+  await expect(details).toContainText("+91 98765 43210");
+  await expect(details).toContainText("B+");
+  await expect(details).toContainText("Intermediate");
+  // Read-only: no form fields; Edit is one click away.
+  await expect(page.locator("main input, main select, main textarea")).toHaveCount(0);
+  await page.getByRole("link", { name: "Edit" }).click();
+  await expect(page.getByLabel("Full name")).toHaveValue(name);
+});
+
 test("batch finder filters the schedule by level", async ({ page }) => {
   await page.goto("/#schedule");
   const cards = page.locator("#schedule").getByTestId("batch-card");

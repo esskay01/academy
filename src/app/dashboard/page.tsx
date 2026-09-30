@@ -18,6 +18,7 @@ import {
   KeyRound,
 } from "lucide-react";
 import { ChangePasswordForm } from "./change-password-form";
+import { PhotoForm } from "./photo-form";
 import { Logo } from "@/components/brand/logo";
 import { Reveal } from "@/components/motion/reveal";
 import { SignOutButton } from "@/components/sign-out-button";
@@ -168,6 +169,9 @@ export default async function DashboardPage(props: PageProps<"/dashboard">) {
           <Reveal delay={0.1}>
             <section className="glass h-full rounded-3xl p-7">
               <h2 className="text-sm font-semibold tracking-wider text-white/50 uppercase">Personal details</h2>
+              <div className="mt-5 rounded-2xl border border-white/5 bg-white/[0.03] p-4">
+                <PhotoForm name={user.name} image={user.image ?? null} />
+              </div>
               <dl className="mt-5 grid gap-4 sm:grid-cols-2">
                 {details.map((d) => (
                   <div key={d.label} className="rounded-2xl border border-white/5 bg-white/[0.03] p-4">

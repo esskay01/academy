@@ -12,10 +12,12 @@ type Props = {
   currentUrl?: string | null;
   fallbackName: string;
   error?: string | string[];
+  /** Show the "Remove current photo" checkbox (default true). */
+  allowRemove?: boolean;
 };
 
 /** File picker with a live preview; offers "remove" when a photo already exists. */
-export function ImageInput({ id, label = "Photo", name = "photo", currentUrl, fallbackName, error }: Props) {
+export function ImageInput({ id, label = "Photo", name = "photo", currentUrl, fallbackName, error, allowRemove = true }: Props) {
   const [preview, setPreview] = useState<string | null>(null);
   useEffect(() => () => {
     if (preview) URL.revokeObjectURL(preview);
@@ -42,7 +44,7 @@ export function ImageInput({ id, label = "Photo", name = "photo", currentUrl, fa
             setPreview(file ? URL.createObjectURL(file) : null);
           }}
         />
-        {currentUrl && <Checkbox label="Remove current photo" name="removePhoto" />}
+        {currentUrl && allowRemove && <Checkbox label="Remove current photo" name="removePhoto" />}
         <p className="w-full text-xs text-white/40">JPG, PNG or WebP · max 2 MB</p>
       </div>
     </Field>

@@ -136,10 +136,14 @@ export default async function MembersPage(props: PageProps<"/admin/members">) {
                 <tr key={m.id} data-testid="member-row" className="grid grid-cols-2 gap-x-4 gap-y-3 p-5 align-middle transition hover:bg-white/[0.02] md:table-row md:p-0">
                   <td className="col-span-2 block md:table-cell md:min-w-64 md:px-5 md:py-4">
                     <div className="flex items-center gap-3">
-                      <Avatar name={m.name} src={m.image} className="size-9 text-xs" />
+                      {/* Clicking the member opens their read-only profile. */}
+                      <Link href={`/admin/members/${m.id}/view`} tabIndex={-1} aria-hidden className="shrink-0">
+                        <Avatar name={m.name} src={m.image} className="size-9 text-xs" />
+                      </Link>
                       <div className="min-w-0">
                         <p className="flex flex-wrap items-center gap-2 font-medium text-white">
-                          {m.name} <RoleBadge role={m.role} /> {self && <span className="text-xs text-white/40">(you)</span>}
+                          <Link href={`/admin/members/${m.id}/view`} className="hover:text-brand-text hover:underline">{m.name}</Link>{" "}
+                          <RoleBadge role={m.role} /> {self && <span className="text-xs text-white/40">(you)</span>}
                         </p>
                         <p className="max-w-56 truncate text-xs text-white/45" title={m.email}>{m.email}</p>
                         {m.memberCode && <p className="font-mono text-[11px] text-white/55" data-testid="member-code">{m.memberCode}</p>}
