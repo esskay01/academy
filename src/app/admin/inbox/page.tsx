@@ -28,7 +28,7 @@ export default async function InboxPage() {
           <p className="mt-1 text-white/50">No registrations are waiting for review.</p>
         </div>
       ) : (
-        <ul className="grid gap-4 md:grid-cols-2">
+        <ul className="grid grid-cols-1 gap-4 md:grid-cols-2">
           {pending.map((u) => (
             <li key={u.id} data-testid="inbox-item" className="glass flex flex-col rounded-3xl p-6">
               <div className="flex items-start gap-4">

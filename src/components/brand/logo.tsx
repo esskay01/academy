@@ -25,7 +25,7 @@ export function Logo({ name = "Bajrang", className }: { name?: string; className
       </span>
       <span className="leading-none">
         <span className="font-display block text-lg font-bold tracking-tight text-white">{name}</span>
-        <span className="block text-[10px] font-semibold tracking-[0.25em] text-brand/80 uppercase">
+        <span className="block text-[10px] font-semibold tracking-[0.25em] text-brand-text uppercase">
           Badminton Academy
         </span>
       </span>

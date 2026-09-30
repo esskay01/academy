@@ -21,7 +21,7 @@ export default async function LoginPage(props: PageProps<"/login">) {
       <LoginForm next={nextPath} />
       <p className="mt-8 text-center text-sm text-white/50">
         New to the academy?{" "}
-        <Link href="/register" className="font-semibold text-brand hover:underline">
+        <Link href="/register" className="font-semibold text-brand-text hover:underline">
           Create an account
         </Link>
       </p>

@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
+  adminResetPasswordSchema,
+  changePasswordSchema,
   coachSchema,
   parsePageSize,
   registerFormSchema,
@@ -82,5 +84,20 @@ describe("admin content schemas", () => {
     const ok = slotSchema.parse({ ...base, startTime: "06:00", endTime: "07:00", coachId: "" });
     expect(ok.coachId).toBeNull();
     expect(ok.isActive).toBe(false);
+  });
+});
+
+describe("password schemas", () => {
+  it("requires matching confirmation for an admin reset", () => {
+    expect(adminResetPasswordSchema.safeParse({ password: "Fresh@12345", confirmPassword: "Fresh@12345" }).success).toBe(true);
+    expect(adminResetPasswordSchema.safeParse({ password: "Fresh@12345", confirmPassword: "nope" }).success).toBe(false);
+    expect(adminResetPasswordSchema.safeParse({ password: "short", confirmPassword: "short" }).success).toBe(false);
+  });
+
+  it("rejects reusing the current password", () => {
+    const same = changePasswordSchema.safeParse({ currentPassword: "Player@12345", newPassword: "Player@12345", confirmPassword: "Player@12345" });
+    expect(same.success).toBe(false);
+    const ok = changePasswordSchema.safeParse({ currentPassword: "Player@12345", newPassword: "Player@67890", confirmPassword: "Player@67890" });
+    expect(ok.success).toBe(true);
   });
 });

@@ -3,6 +3,7 @@
 import {
   createAdmin,
   promoteByEmail,
+  resetMemberPassword,
   saveAnnouncement,
   saveCoach,
   saveProgram,
@@ -14,6 +15,7 @@ import {
 import { AdminForm } from "@/components/admin/admin-form";
 import { Checkbox, Input, Select, Textarea } from "@/components/ui/field";
 import { ImageInput } from "@/components/ui/image-input";
+import { PasswordInput } from "@/components/ui/password-input";
 import { PhoneInput } from "@/components/ui/phone-input";
 import { SKILL_LEVELS } from "@/lib/constants";
 import type { Announcement, Coach, Program, SiteSettings, Testimonial, TrainingSlot, User } from "@/lib/db/schema";
@@ -62,8 +64,8 @@ export function SlotForm({ slot, coaches, onDone }: { slot?: TrainingSlot; coach
             <Input id={`${p}days`} label="Days" name="days" defaultValue={slot?.days} placeholder="Mon · Wed · Fri" error={e.days} />
           </div>
           <div className="grid gap-4 sm:grid-cols-4">
-            <Input id={`${p}start`} label="Start" name="startTime" type="time" defaultValue={slot?.startTime ?? "06:00"} error={e.startTime} className="[color-scheme:dark]" />
-            <Input id={`${p}end`} label="End" name="endTime" type="time" defaultValue={slot?.endTime ?? "07:30"} error={e.endTime} className="[color-scheme:dark]" />
+            <Input id={`${p}start`} label="Start" name="startTime" type="time" defaultValue={slot?.startTime ?? "06:00"} error={e.startTime} />
+            <Input id={`${p}end`} label="End" name="endTime" type="time" defaultValue={slot?.endTime ?? "07:30"} error={e.endTime} />
             <Input id={`${p}cap`} label="Capacity" name="capacity" type="number" min={1} defaultValue={slot?.capacity ?? 16} error={e.capacity} />
             <Input id={`${p}enr`} label="Enrolled" name="enrolled" type="number" min={0} defaultValue={slot?.enrolled ?? 0} error={e.enrolled} />
           </div>
@@ -195,7 +197,7 @@ export function CreateAdminForm() {
             <Input id="new-admin-name" label="Full name" name="name" error={e.name} />
             <Input id="new-admin-email" label="Email" name="email" type="email" error={e.email} />
             <PhoneInput id="new-admin-phone" error={e.phone} />
-            <Input id="new-admin-password" label="Temporary password" name="password" type="password" autoComplete="new-password" error={e.password} />
+            <PasswordInput id="new-admin-password" label="Temporary password" name="password" autoComplete="new-password" error={e.password} showStrength />
           </div>
         </>
       )}
@@ -214,7 +216,7 @@ export function PromoteForm() {
 function Group({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <fieldset className="space-y-4">
-      <legend className="mb-4 text-sm font-semibold tracking-wider text-brand uppercase">{title}</legend>
+      <legend className="mb-4 text-sm font-semibold tracking-wider text-brand-text uppercase">{title}</legend>
       {children}
     </fieldset>
   );
@@ -231,7 +233,7 @@ export function MemberEditForm({ member }: { member: Pick<User, "id" | "name" | 
             <Input label="Full name" name="name" defaultValue={member.name} error={e.name} />
             <Input label="Email" name="email" type="email" defaultValue={member.email} error={e.email} />
             <PhoneInput defaultValue={member.phone} error={e.phone} />
-            <Input label="Date of birth" name="dateOfBirth" type="date" defaultValue={member.dateOfBirth ?? ""} error={e.dateOfBirth} className="[color-scheme:dark]" />
+            <Input label="Date of birth" name="dateOfBirth" type="date" defaultValue={member.dateOfBirth ?? ""} error={e.dateOfBirth} />
             <Select label="Skill level" name="skillLevel" defaultValue={member.skillLevel} options={levelOptions} error={e.skillLevel} />
           </div>
         </>
@@ -265,6 +267,22 @@ export function TestimonialForm({ item, onDone }: { item?: Testimonial } & WithD
             />
             <Input id={`${p}order`} label="Display order" name="sortOrder" type="number" min={0} defaultValue={item?.sortOrder ?? 0} error={e.sortOrder} fieldClassName="w-32" />
             <Checkbox label="Published on website" name="isPublished" defaultChecked={item?.isPublished ?? true} />
+          </div>
+        </>
+      )}
+    </AdminForm>
+  );
+}
+
+export function ResetPasswordForm({ userId }: { userId: string }) {
+  return (
+    <AdminForm action={resetMemberPassword} submitLabel="Reset password" resetOnSuccess>
+      {(e) => (
+        <>
+          <input type="hidden" name="userId" value={userId} />
+          <div className="grid gap-4 sm:grid-cols-2">
+            <PasswordInput id="reset-password" label="New password" name="password" autoComplete="new-password" error={e.password} showStrength />
+            <PasswordInput id="reset-confirm" label="Confirm new password" name="confirmPassword" autoComplete="new-password" error={e.confirmPassword} />
           </div>
         </>
       )}

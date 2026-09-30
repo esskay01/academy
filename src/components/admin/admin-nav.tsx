@@ -54,7 +54,7 @@ export function AdminNav({ pendingCount }: { pendingCount: number }) {
                 href={it.href}
                 className={cn(
                   "flex shrink-0 items-center gap-2.5 rounded-xl px-3 py-2 text-sm font-medium whitespace-nowrap transition",
-                  active ? "bg-brand/15 text-brand" : "text-white/60 hover:bg-white/5 hover:text-white",
+                  active ? "bg-brand/15 text-brand-text" : "text-white/60 hover:bg-white/5 hover:text-white",
                 )}
               >
                 <it.icon className="size-4" />

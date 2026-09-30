@@ -13,10 +13,13 @@ import {
   UserRound,
   XCircle,
   Cake,
+  KeyRound,
 } from "lucide-react";
+import { ChangePasswordForm } from "./change-password-form";
 import { Logo } from "@/components/brand/logo";
 import { Reveal } from "@/components/motion/reveal";
 import { SignOutButton } from "@/components/sign-out-button";
+import { ThemeToggle } from "@/components/theme/theme-toggle";
 import { Avatar } from "@/components/ui/avatar";
 import { LinkButton } from "@/components/ui/button";
 import { RoleBadge, StatusBadge } from "@/components/ui/status-badge";
@@ -96,19 +99,20 @@ export default async function DashboardPage(props: PageProps<"/dashboard">) {
       <header className="relative mx-auto flex max-w-6xl items-center justify-between px-6 py-5">
         <Logo />
         <div className="flex items-center gap-2">
+          <ThemeToggle className="hidden sm:inline-flex" />
           {isAdmin(session) && (
-            <LinkButton href="/admin" variant="secondary" size="sm">
-              <ShieldCheck className="size-3.5" /> Admin panel
+            <LinkButton href="/admin" variant="secondary" size="sm" aria-label="Admin panel">
+              <ShieldCheck className="size-3.5" /> <span className="hidden sm:inline">Admin panel</span>
             </LinkButton>
           )}
           <SignOutButton />
         </div>
       </header>
 
-      <main className="relative mx-auto max-w-6xl px-6 pt-6 pb-20">
+      <main id="main" className="relative mx-auto max-w-6xl px-6 pt-6 pb-20">
         {welcome && status === "pending" && (
           <Reveal>
-            <div className="mb-6 flex items-center gap-3 rounded-2xl border border-brand/30 bg-brand/10 px-4 py-3 text-sm text-brand">
+            <div className="mb-6 flex items-center gap-3 rounded-2xl border border-brand/30 bg-brand/10 px-4 py-3 text-sm text-brand-text">
               <Sparkles className="size-4 shrink-0" /> Registration received — welcome to the academy!
             </div>
           </Reveal>
@@ -217,7 +221,7 @@ export default async function DashboardPage(props: PageProps<"/dashboard">) {
                   <div key={s.id} className="card-hover glass rounded-2xl p-5">
                     <p className="font-semibold text-white">{s.title}</p>
                     <p className="mt-1 text-sm text-white/55">{s.days}</p>
-                    <p className="mt-3 flex items-center gap-1.5 text-sm text-brand">
+                    <p className="mt-3 flex items-center gap-1.5 text-sm text-brand-text">
                       <Clock className="size-3.5" /> {formatTime(s.startTime)} – {formatTime(s.endTime)}
                     </p>
                     {s.coachName && <p className="mt-1 text-xs text-white/45">Coach: {s.coachName}</p>}
@@ -243,6 +247,23 @@ export default async function DashboardPage(props: PageProps<"/dashboard">) {
             </Reveal>
           )
         )}
+
+        <Reveal delay={0.18}>
+          <section id="security" className="glass mt-10 scroll-mt-6 rounded-3xl p-7" aria-labelledby="security-heading">
+            <div className="grid gap-8 lg:grid-cols-[1fr_1.6fr]">
+              <div>
+                <span className="grid size-11 place-items-center rounded-2xl bg-brand/15 text-brand-text">
+                  <KeyRound className="size-5" />
+                </span>
+                <h2 id="security-heading" className="font-display mt-4 text-2xl font-bold text-white">Account security</h2>
+                <p className="mt-2 text-sm text-white/55">
+                  Change your password any time. Changing it signs you out on every other device.
+                </p>
+              </div>
+              <ChangePasswordForm />
+            </div>
+          </section>
+        </Reveal>
       </main>
     </div>
   );

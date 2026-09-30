@@ -65,7 +65,7 @@ export function SlotManager({ slots, coaches }: { slots: TrainingSlot[]; coaches
               <span className="inline-flex items-center gap-1.5"><CalendarDays className="size-3.5" />{s.days}</span>
               <span className="inline-flex items-center gap-1.5"><Clock className="size-3.5" />{formatTime(s.startTime)} – {formatTime(s.endTime)}</span>
               {s.coachId && <span className="inline-flex items-center gap-1.5"><UserRound className="size-3.5" />{coachName.get(s.coachId)}</span>}
-              <span className={left <= 0 ? "text-rose-300" : left <= 3 ? "text-amber-200" : "text-brand"}>
+              <span className={left <= 0 ? "text-rose-300" : left <= 3 ? "text-amber-200" : "text-brand-text"}>
                 {s.enrolled}/{s.capacity} enrolled
               </span>
             </p>
@@ -85,7 +85,7 @@ export function ProgramManager({ programs }: { programs: Program[] }) {
         <EditableItem key={p.id} muted={!p.isActive} renderForm={(done) => <ProgramForm program={p} onDone={done} />} deleteAction={() => deleteProgram(p.id)}>
           <p className="flex items-center gap-2 font-semibold text-white">
             {p.name}
-            {p.isFeatured && <Star className="size-3.5 fill-brand text-brand" />}
+            {p.isFeatured && <Star className="size-3.5 fill-brand text-brand-text" />}
             <Hidden show={!p.isActive} />
           </p>
           <p className="text-sm text-white/50">

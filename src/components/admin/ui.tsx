@@ -57,7 +57,7 @@ export function AddPanel({ label, children }: { label: string; children: (onDone
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}
-        className="flex w-full items-center gap-2 px-5 py-4 text-sm font-semibold text-brand"
+        className="flex w-full items-center gap-2 px-5 py-4 text-sm font-semibold text-brand-text"
         aria-expanded={open}
       >
         <Plus className={cn("size-4 transition", open && "rotate-45")} /> {label}

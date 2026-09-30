@@ -24,6 +24,7 @@ import { academyToday, computeEndDate } from "@/lib/membership";
 import { formatDate } from "@/lib/utils";
 import { expireEndedMemberships, getMemberships } from "@/lib/membership-server";
 import {
+  adminResetPasswordSchema,
   announcementSchema,
   coachSchema,
   createAdminSchema,
@@ -154,6 +155,30 @@ export async function updateMember(_prev: ActionState, formData: FormData): Prom
   await db.update(user).set({ ...fields, image }).where(eq(user.id, userId));
   refreshSite();
   return { ok: true, message: `${fields.name}'s details were saved.` };
+}
+
+export async function resetMemberPassword(_prev: ActionState, formData: FormData): Promise<ActionState> {
+  const session = await requireAdmin();
+  const userId = userIdSchema.parse(formData.get("userId"));
+  if (userId === session.user.id) {
+    return { ok: false, message: "Change your own password from My account instead." };
+  }
+  const parsed = adminResetPasswordSchema.safeParse(formToObject(formData));
+  if (!parsed.success) return invalid(parsed.error);
+
+  const [target] = await db.select({ name: user.name, role: user.role }).from(user).where(eq(user.id, userId));
+  if (!target) return { ok: false, message: "Member not found." };
+  // Resetting another admin's password would let one admin sign in as another
+  // (account takeover, actions under their name). Admins change their own.
+  if (target.role === "admin") {
+    return { ok: false, message: "Admins change their own password from My account." };
+  }
+
+  const requestHeaders = await headers();
+  await auth.api.setUserPassword({ body: { userId, newPassword: parsed.data.password }, headers: requestHeaders });
+  // Sign them out everywhere so the old password (or a stolen session) stops working.
+  await auth.api.revokeUserSessions({ body: { userId }, headers: requestHeaders });
+  return { ok: true, message: `${target.name}'s password was reset. Share it with them securely.` };
 }
 
 export async function saveMembership(_prev: ActionState, formData: FormData): Promise<ActionState> {

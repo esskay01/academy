@@ -47,7 +47,7 @@ function MembershipFields({ e, item, programs, today, prefix }: { e: FieldErrors
         <Input id={`${prefix}paid`} label="Amount paid (₹)" name="amountPaid" type="number" min={0} defaultValue={item?.amountPaid ?? 0} error={e.amountPaid} />
       </div>
       <div className="grid gap-4 sm:grid-cols-3">
-        <Input id={`${prefix}start`} label="Membership start" name="startDate" type="date" value={start} onChange={(ev) => setStart(ev.target.value)} error={e.startDate} className="[color-scheme:dark]" />
+        <Input id={`${prefix}start`} label="Membership start" name="startDate" type="date" value={start} onChange={(ev) => setStart(ev.target.value)} error={e.startDate} />
         <Input id={`${prefix}months`} label="Duration — months" name="durationMonths" type="number" min={0} max={60} value={months} onChange={(ev) => setMonths(ev.target.value)} error={e.durationMonths} />
         <Input id={`${prefix}days`} label="Duration — days" name="durationDays" type="number" min={0} max={365} value={days} onChange={(ev) => setDays(ev.target.value)} error={e.durationDays} />
       </div>

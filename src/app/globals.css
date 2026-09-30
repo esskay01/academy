@@ -1,8 +1,13 @@
 @import "tailwindcss";
 
 @theme {
+  /* ink: always-dark text/fill for use on bright colours (brand buttons, avatars). */
   --color-ink: #05070f;
+  /* canvas: the page background — dark or light depending on the theme. */
+  --color-canvas: #05070f;
   --color-surface: #0b1020;
+  /* Readable brand colour for text and icons (bright lime on dark, deep lime on light). */
+  --color-brand-text: #c8f53c;
   --color-brand: #c8f53c;
   --color-ember: #ff7a45;
   /* Data marks: brand lime stepped into the dark-mode lightness band (validated). */
@@ -21,6 +26,34 @@
     }
   }
 
+  /*
+   * Hero entrance, in CSS rather than JS: it starts as soon as the stylesheet
+   * arrives instead of after hydration (the JS version kept the hero text
+   * invisible until ~6 s on a throttled phone — the page's LCP). Stagger with
+   * an inline animation-delay; fill-mode "both" holds the start state until then.
+   */
+  --animate-rise: rise 0.6s cubic-bezier(0.22, 1, 0.36, 1) both;
+  @keyframes rise {
+    from {
+      opacity: 0;
+      transform: translateY(16px);
+    }
+  }
+  --animate-word: word 0.7s cubic-bezier(0.22, 1, 0.36, 1) both;
+  @keyframes word {
+    from {
+      opacity: 0;
+      transform: translateY(40px) rotateX(-60deg);
+    }
+  }
+  --animate-court-in: court-in 0.9s cubic-bezier(0.22, 1, 0.36, 1) both;
+  @keyframes court-in {
+    from {
+      opacity: 0;
+      transform: scale(0.92) rotate(-2deg);
+    }
+  }
+
   --animate-float: float 5s ease-in-out infinite;
   @keyframes float {
     0%,
@@ -36,6 +69,98 @@
 :root {
   color-scheme: dark;
   --chevron: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23ffffff80' stroke-width='2'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  /* Surface tints used by the glass/court-grid utilities (the foreground colour, faint). */
+  --tint: 255 255 255;
+  --gradient-text: linear-gradient(100deg, #d9ff4a 0%, #7cf0a0 45%, #38e1ff 100%);
+}
+
+/*
+ * Light theme. Most components are written as "white text on ink", so instead of
+ * restyling every class we invert the theme tokens: `white` becomes the dark
+ * foreground and `canvas`/`surface` become light. `ink` stays dark because it is
+ * used for text on bright fills (lime buttons, avatar gradients).
+ */
+[data-theme="light"] {
+  color-scheme: light;
+  --color-white: #0e1726;
+  --color-canvas: #f4f6f0;
+  --color-surface: #ffffff;
+  --color-brand-text: #4a7a0c;
+  --color-chart: #5b8a10;
+  --tint: 14 23 38;
+  --gradient-text: linear-gradient(100deg, #4d8a00 0%, #0f9d6b 45%, #0a84b8 100%);
+  --chevron: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%230e172699' stroke-width='2'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+
+  /* Pale status tints (made for dark backgrounds) → deep shades that read on white. */
+  & .text-rose-200, & .text-rose-300 { color: var(--color-rose-700); }
+  & .text-amber-200, & .text-amber-300 { color: var(--color-amber-700); }
+  & .text-emerald-200, & .text-emerald-300 { color: var(--color-emerald-700); }
+  & .text-cyan-300 { color: var(--color-cyan-700); }
+  & .text-orange-200 { color: var(--color-orange-700); }
+  & .text-sky-300 { color: var(--color-sky-700); }
+  & .text-violet-300 { color: var(--color-violet-700); }
+}
+
+/*
+ * Contrast floor for muted text (WCAG AA 4.5:1, found by an axe audit).
+ * Components use faint ink like text-white/40 for labels; on the darkest and
+ * lightest surfaces those fall below AA, so each theme lifts them to the
+ * lowest alpha that passes everywhere. These rules are unlayered, so they
+ * would also beat hover:/focus-visible: colour variants — hence the :not().
+ */
+:root :is(.text-white\/35, .text-white\/40, .text-white\/45):not(:hover, :focus-visible) {
+  color: rgb(255 255 255 / 0.56);
+}
+[data-theme="light"] :is(.text-white\/35, .text-white\/40, .text-white\/45, .text-white\/50, .text-white\/55):not(:hover, :focus-visible) {
+  color: rgb(14 23 38 / 0.68);
+}
+/* Dark islands keep the dark-theme floor inside a light page. */
+[data-theme="light"] .theme-dark :is(.text-white\/35, .text-white\/40, .text-white\/45, .text-white\/50, .text-white\/55):not(:hover, :focus-visible) {
+  color: rgb(255 255 255 / 0.56);
+}
+
+/* On light pages, cards read as lifted white panels rather than grey film. */
+[data-theme="light"] .glass:not(.theme-dark .glass) {
+  background: linear-gradient(145deg, rgb(255 255 255 / 0.92), rgb(255 255 255 / 0.72));
+  border-color: rgb(14 23 38 / 0.08);
+  box-shadow:
+    0 1px 2px rgb(14 23 38 / 0.04),
+    0 12px 32px -16px rgb(14 23 38 / 0.18);
+}
+
+/* Dark "islands" (the court game, badges on photos) keep dark tokens in either theme. */
+.theme-dark {
+  color-scheme: dark;
+  --color-white: #ffffff;
+  --color-canvas: #05070f;
+  --color-surface: #0b1020;
+  --color-brand-text: #c8f53c;
+  --tint: 255 255 255;
+  --gradient-text: linear-gradient(100deg, #d9ff4a 0%, #7cf0a0 45%, #38e1ff 100%);
+}
+
+/* Theme switch via View Transitions: JS clips the new snapshot into a growing circle. */
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation: none;
+  mix-blend-mode: normal;
+}
+html.theme-instant *,
+html.theme-instant *::before,
+html.theme-instant *::after {
+  transition: none !important;
+}
+
+/* Smooth colour change when the theme is switched (not on first paint). */
+html.theme-transition,
+html.theme-transition *,
+html.theme-transition *::before,
+html.theme-transition *::after {
+  transition:
+    background-color 300ms ease,
+    border-color 300ms ease,
+    color 300ms ease,
+    fill 300ms ease !important;
 }
 
 html {
@@ -48,13 +173,13 @@ html {
 
 /* Frosted-glass surface used by cards, nav and panels. */
 @utility glass {
-  background: linear-gradient(145deg, rgb(255 255 255 / 0.06), rgb(255 255 255 / 0.02));
-  border: 1px solid rgb(255 255 255 / 0.09);
+  background: linear-gradient(145deg, rgb(var(--tint) / 0.06), rgb(var(--tint) / 0.02));
+  border: 1px solid rgb(var(--tint) / 0.09);
   backdrop-filter: blur(18px) saturate(140%);
 }
 
 @utility text-gradient {
-  background-image: linear-gradient(100deg, #d9ff4a 0%, #7cf0a0 45%, #38e1ff 100%);
+  background-image: var(--gradient-text);
   background-clip: text;
   color: transparent;
 }
@@ -62,8 +187,8 @@ html {
 /* Faint badminton-court grid for hero/section backgrounds. */
 @utility court-grid {
   background-image:
-    linear-gradient(rgb(255 255 255 / 0.05) 1px, transparent 1px),
-    linear-gradient(90deg, rgb(255 255 255 / 0.05) 1px, transparent 1px);
+    linear-gradient(rgb(var(--tint) / 0.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgb(var(--tint) / 0.05) 1px, transparent 1px);
   background-size: 64px 64px;
   mask-image: radial-gradient(ellipse at center, black 30%, transparent 75%);
 }
@@ -77,6 +202,21 @@ html {
     transform: translateY(-4px);
     border-color: rgb(200 245 60 / 0.35);
     box-shadow: 0 20px 50px -20px rgb(200 245 60 / 0.25);
+  }
+  /* Cursor spotlight: --mx/--my are set by SiteChrome's pointer listener. */
+  position: relative;
+  &::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 300ms;
+    background: radial-gradient(320px circle at var(--mx, 50%) var(--my, 50%), rgb(200 245 60 / 0.1), transparent 60%);
+  }
+  &:hover::after {
+    opacity: 1;
   }
 }
 

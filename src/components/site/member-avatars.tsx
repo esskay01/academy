@@ -33,7 +33,7 @@ export function MemberAvatars({ members }: { members: PublicMember[] }) {
               onClick={() => setOpenId(open ? null : m.id)}
               onFocus={() => setOpenId(m.id)}
               onBlur={() => setOpenId((id) => (id === m.id ? null : id))}
-              className="block rounded-full border-2 border-ink transition hover:-translate-y-1 focus-visible:outline-2 focus-visible:outline-brand"
+              className="block rounded-full border-2 border-ink transition hover:-translate-y-1 focus-visible:outline-2 focus-visible:outline-brand-text"
             >
               <Avatar name={m.name} src={m.image} className="size-10 text-xs" />
             </button>
@@ -58,12 +58,12 @@ export function MemberAvatars({ members }: { members: PublicMember[] }) {
                   </div>
                   <dl className="mt-3 space-y-1.5 text-xs text-white/65">
                     <div className="flex items-center gap-2">
-                      <Trophy className="size-3.5 text-brand" />
+                      <Trophy className="size-3.5 text-brand-text" />
                       <dt className="sr-only">Level</dt>
                       <dd>{capitalize(m.skillLevel)} player</dd>
                     </div>
                     <div className="flex items-center gap-2">
-                      <CalendarDays className="size-3.5 text-brand" />
+                      <CalendarDays className="size-3.5 text-brand-text" />
                       <dt className="sr-only">Joined</dt>
                       <dd>Joined {since.format(new Date(m.createdAt))}</dd>
                     </div>

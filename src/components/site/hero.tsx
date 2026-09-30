@@ -8,6 +8,7 @@ import { CourtGame } from "@/components/site/court-game";
 import { MemberAvatars } from "@/components/site/member-avatars";
 import { LinkButton } from "@/components/ui/button";
 import type { PublicMember } from "@/lib/content";
+import { cn } from "@/lib/utils";
 
 type HeroProps = {
   tagline: string;
@@ -19,7 +20,6 @@ type HeroProps = {
   chips: { label: string | null; value: string | null }[];
 };
 
-const ease = [0.22, 1, 0.36, 1] as const;
 
 export function Hero({ tagline, title, subtitle, students, courts, members, chips }: HeroProps) {
   const words = title.split(" ");
@@ -36,49 +36,33 @@ export function Hero({ tagline, title, subtitle, students, courts, members, chip
         <div className="absolute -top-40 left-1/2 h-[36rem] w-[60rem] -translate-x-1/2 rounded-full bg-brand/20 blur-[140px]" />
         <div className="absolute top-40 -right-40 h-[28rem] w-[28rem] rounded-full bg-cyan-400/20 blur-[120px]" />
         <div className="absolute bottom-0 -left-32 h-[24rem] w-[24rem] rounded-full bg-ember/15 blur-[120px]" />
-        <div className="absolute inset-x-0 bottom-0 h-40 bg-gradient-to-b from-transparent to-ink" />
+        <div className="absolute inset-x-0 bottom-0 h-40 bg-gradient-to-b from-transparent to-canvas" />
       </div>
 
       <div className="mx-auto grid max-w-7xl items-center gap-16 px-6 lg:grid-cols-[1.15fr_1fr]">
         <div>
-          <motion.span
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, ease }}
-            className="inline-flex items-center gap-2 rounded-full border border-brand/30 bg-brand/10 px-3.5 py-1.5 text-xs font-semibold tracking-wide text-brand"
-          >
+          {/* Entrance animations are CSS (animate-*), not Motion: they must not wait for hydration (LCP). */}
+          <span className="animate-rise inline-flex items-center gap-2 rounded-full border border-brand/30 bg-brand/10 px-3.5 py-1.5 text-xs font-semibold tracking-wide text-brand-text">
             <ShuttleIcon className="size-4 -rotate-12" /> {tagline}
-          </motion.span>
+          </span>
 
           <h1 className="font-display mt-6 text-4xl leading-[1.08] font-extrabold tracking-tight text-balance text-white sm:text-5xl xl:text-6xl">
             {words.map((w, i) => (
-              <motion.span
+              <span
                 key={`${w}-${i}`}
-                className={i >= words.length - 2 ? "text-gradient inline-block" : "inline-block"}
-                initial={{ opacity: 0, y: 40, rotateX: -60 }}
-                animate={{ opacity: 1, y: 0, rotateX: 0 }}
-                transition={{ duration: 0.7, delay: 0.1 + i * 0.07, ease }}
+                className={cn("animate-word inline-block", i >= words.length - 2 && "text-gradient")}
+                style={{ animationDelay: `${0.1 + i * 0.07}s` }}
               >
                 {w}&nbsp;
-              </motion.span>
+              </span>
             ))}
           </h1>
 
-          <motion.p
-            initial={{ opacity: 0, y: 16 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 0.5, ease }}
-            className="mt-6 max-w-xl text-lg leading-relaxed text-white/65"
-          >
+          <p className="animate-rise mt-6 max-w-xl text-lg leading-relaxed text-white/65" style={{ animationDelay: "0.25s" }}>
             {subtitle}
-          </motion.p>
+          </p>
 
-          <motion.div
-            initial={{ opacity: 0, y: 16 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 0.65, ease }}
-            className="mt-10 flex flex-wrap gap-3"
-          >
+          <div className="animate-rise mt-10 flex flex-wrap gap-3" style={{ animationDelay: "0.4s" }}>
             <LinkButton href="/register" size="lg" className="group">
               Book your first session
               <ArrowRight className="size-4 transition group-hover:translate-x-1" />
@@ -86,28 +70,18 @@ export function Hero({ tagline, title, subtitle, students, courts, members, chip
             <LinkButton href="/#schedule" size="lg" variant="secondary">
               <CalendarClock className="size-4" /> View batches
             </LinkButton>
-          </motion.div>
+          </div>
 
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ duration: 0.8, delay: 0.9 }}
-            className="mt-12 flex items-center gap-4"
-          >
+          <div className="animate-rise mt-12 flex items-center gap-4" style={{ animationDelay: "0.55s" }}>
             <MemberAvatars members={members} />
             <p className="text-sm text-white/60">
               <span className="font-semibold text-white">{students.toLocaleString("en-IN")}+ players</span> training across {courts} pro courts
             </p>
-          </motion.div>
+          </div>
         </div>
 
         {/* Visual: doubles demo loop — visitors can join and play a rally */}
-        <motion.div
-          initial={{ opacity: 0, scale: 0.92, rotate: -2 }}
-          animate={{ opacity: 1, scale: 1, rotate: 0 }}
-          transition={{ duration: 0.9, delay: 0.2, ease }}
-          className="relative mx-auto aspect-[4/5] w-full max-w-md"
-        >
+        <div className="animate-court-in relative mx-auto aspect-[4/5] w-full max-w-md" style={{ animationDelay: "0.15s" }}>
           <CourtGame onActiveChange={setGameActive} />
 
           {/* Admin-editable highlights (Site & contact → Hero highlights); blank value = hidden. */}
@@ -129,7 +103,7 @@ export function Hero({ tagline, title, subtitle, students, courts, members, chip
               </div>
             </FloatingChip>
           )}
-        </motion.div>
+        </div>
       </div>
     </section>
   );

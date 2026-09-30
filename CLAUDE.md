@@ -94,7 +94,21 @@ Status follows memberships:
 
 Pages that run DB work before any request API must call `connection()` first. Otherwise `next build` tries to prerender them without a database; this broke the build once.
 
-**Members admin.** The list is paginated (`?size=` must be a multiple of 10 from 10 to 100, default 50; `?page=`). Only `inactive` members can be permanently deleted. Sessions and accounts cascade.
+**Members admin.** The list is paginated (`?size=` must be a multiple of 10 from 10 to 100, default 50; `?page=`). Only `inactive` members can be permanently deleted. Sessions and accounts cascade. Below `md` the same `<table>` renders as stacked cards (cells label themselves via `data-label`), so e2e selectors work at every width.
+
+**Passwords.** `PasswordInput` (show/hide, Caps Lock hint, optional strength meter from pure `src/lib/password.ts`). Members change their own password on `/dashboard#security` (`authClient.changePassword`, revoking other sessions). There is no email service, so "forgot password" means an admin resets it on the member's edit page (`resetMemberPassword` → `auth.api.setUserPassword` + `revokeUserSessions`). Admins can't reset other admins' passwords (account takeover); they change their own.
+
+**Themes (light / dark / system).** Dark is the default. The preference lives in `localStorage` and is applied before paint by `themeBootScript` (`src/lib/theme.ts`) as `<html data-theme>`, so there is no flash; `ThemeToggle`/`useTheme` read those attributes. Light mode works by **redefining theme tokens** in `globals.css`, not by per-component classes:
+- `white` is the *foreground* token (becomes near-black in light mode) — keep writing `text-white/60` etc.
+- `canvas` = page background; `surface` = cards; `ink` stays dark in both themes (text on lime buttons/avatars).
+- `brand` is the lime fill; use `text-brand-text` / `outline-brand-text` for brand-coloured text (deep lime in light mode), never `text-brand`.
+- `.theme-dark` makes a subtree a dark "island" in either theme (the court game, badges on photos).
+- Pale status text (`text-rose-300`, `text-amber-200`, …) and muted text (`text-white/35`–`/55`) are remapped by unlayered rules to pass WCAG AA; those rules exclude `:hover`/`:focus-visible` so state variants still win.
+- `bg-chart` is the validated data-mark colour (meters, bars) in both themes.
+
+**Admin overview** (`/admin`): registrations-per-week chart, fees collected/outstanding, renewals due in 7 days (a member's *latest* plan end, so renewed members drop off), batch occupancy meters. Date bucketing is pure and tested in `src/lib/analytics.ts`.
+
+**Quality gates in e2e.** Besides feature flows, the suite runs axe (WCAG 2.1 AA) on key pages in both themes and checks that no page scrolls sideways at 360px and 768px. New UI must keep both green.
 
 ## Production
 
@@ -110,3 +124,7 @@ See `DEPLOY.md`: an Oracle Cloud ARM VM running `docker-compose.prod.yml`, publi
 - lucide-react v1 has no brand icons; social icons are inline SVGs in `components/brand/social-icons.tsx`.
 - Zod 4: use `z.flattenError(err)` rather than `err.flatten()`, and `{ error: "…" }` for messages.
 - `revalidateTag` requires a second (cacheLife) argument in Next 16.
+- Don't animate above-the-fold content in with Motion `initial={{ opacity: 0 }}`: it's in the SSR HTML, so the content stays invisible until JS hydrates (hero LCP was 6 s on a throttled phone). Use the CSS `animate-rise` / `animate-word` / `animate-court-in` utilities with an inline `animationDelay`.
+- `next/font` `subsets` only chooses what is *preloaded*; all subsets stay in the CSS. Preload `latin` only — `latin-ext` (₹, accents) loads on demand.
+- A grid with no explicit columns sizes its implicit column to the widest content, so `truncate` text blows out the page on phones. Use `grid-cols-1` (= `minmax(0,1fr)`) and `minmax(0,…)` in custom templates.
+- The theme reveal uses the View Transitions API; headless screenshots don't capture its frames faithfully (they can show a blank page). Verify it with `recordVideo` frames instead.

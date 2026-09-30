@@ -27,6 +27,9 @@ import { parsePage, parsePageSize } from "@/lib/validations";
 
 export const metadata: Metadata = { title: "Members" };
 
+/** A cell that, below md, prints its column name above its value (rows become cards). */
+const cellClass = "block before:mb-0.5 before:block before:text-[11px] before:font-medium before:tracking-wider before:text-white/45 before:uppercase before:content-[attr(data-label)] md:table-cell md:px-5 md:py-4 md:before:hidden";
+
 const filters = [{ value: "", label: "All" }, ...USER_STATUSES.map((s) => ({ value: s, label: capitalize(s) }))];
 
 export default async function MembersPage(props: PageProps<"/admin/members">) {
@@ -108,8 +111,9 @@ export default async function MembersPage(props: PageProps<"/admin/members">) {
       </div>
 
       <div className="glass overflow-x-auto rounded-3xl">
-        <table className="w-full min-w-[1100px] text-left text-sm">
-          <thead className="border-b border-white/10 text-xs tracking-wider text-white/45 uppercase">
+        {/* Below md the rows render as stacked cards (same markup; cells label themselves via data-label). */}
+        <table className="block w-full text-left text-sm md:table md:min-w-[1100px]">
+          <thead className="hidden border-b border-white/10 text-xs tracking-wider text-white/45 uppercase md:table-header-group">
             <tr>
               <th className="px-5 py-4 font-medium">Member</th>
               <th className="px-5 py-4 font-medium whitespace-nowrap">Phone</th>
@@ -120,17 +124,17 @@ export default async function MembersPage(props: PageProps<"/admin/members">) {
               <th className="px-5 py-4 text-right font-medium">Actions</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-white/5">
+          <tbody className="block divide-y divide-white/5 md:table-row-group">
             {members.length === 0 && (
               <tr>
-                <td colSpan={7} className="px-5 py-12 text-center text-white/45">No members match.</td>
+                <td colSpan={7} className="block px-5 py-12 text-center text-white/45 md:table-cell">No members match.</td>
               </tr>
             )}
             {members.map((m) => {
               const self = m.id === session.user.id;
               return (
-                <tr key={m.id} data-testid="member-row" className="align-middle transition hover:bg-white/[0.02]">
-                  <td className="min-w-64 px-5 py-4">
+                <tr key={m.id} data-testid="member-row" className="grid grid-cols-2 gap-x-4 gap-y-3 p-5 align-middle transition hover:bg-white/[0.02] md:table-row md:p-0">
+                  <td className="col-span-2 block md:table-cell md:min-w-64 md:px-5 md:py-4">
                     <div className="flex items-center gap-3">
                       <Avatar name={m.name} src={m.image} className="size-9 text-xs" />
                       <div className="min-w-0">
@@ -141,13 +145,13 @@ export default async function MembersPage(props: PageProps<"/admin/members">) {
                       </div>
                     </div>
                   </td>
-                  <td className="px-5 py-4 whitespace-nowrap text-white/70">{formatPhone(m.phone)}</td>
-                  <td className="px-5 py-4 text-white/70">{capitalize(m.skillLevel)}</td>
-                  <td className="px-5 py-4 whitespace-nowrap text-white/70">{formatDate(m.createdAt)}</td>
-                  <td className="px-5 py-4 whitespace-nowrap"><PlanCell plan={planFor(m.id)} today={today} /></td>
-                  <td className="px-5 py-4"><StatusBadge status={m.status} /></td>
-                  <td className="px-5 py-4">
-                    <div className="flex flex-wrap justify-end gap-2">
+                  <td data-label="Phone" className={cn(cellClass, "whitespace-nowrap text-white/70")}>{formatPhone(m.phone)}</td>
+                  <td data-label="Level" className={cn(cellClass, "text-white/70")}>{capitalize(m.skillLevel)}</td>
+                  <td data-label="Joined" className={cn(cellClass, "whitespace-nowrap text-white/70")}>{formatDate(m.createdAt)}</td>
+                  <td data-label="Membership" className={cn(cellClass, "md:whitespace-nowrap")}><PlanCell plan={planFor(m.id)} today={today} /></td>
+                  <td data-label="Status" className={cn(cellClass, "col-span-2 md:col-span-1")}><StatusBadge status={m.status} /></td>
+                  <td className="col-span-2 block border-t border-white/5 pt-3 md:table-cell md:border-0 md:px-5 md:py-4">
+                    <div className="flex flex-wrap gap-2 md:justify-end">
                       <Link href={`/admin/members/${m.id}`} className={buttonClass("ghost", "sm")}>
                         <Pencil className="size-3.5" /> Edit
                       </Link>

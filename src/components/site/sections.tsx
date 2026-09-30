@@ -3,7 +3,6 @@ import {
   Activity,
   ArrowRight,
   Award,
-  CalendarDays,
   Check,
   Clock,
   Dumbbell,
@@ -15,16 +14,17 @@ import {
   Quote,
   ShieldCheck,
   Target,
-  UserRound,
 } from "lucide-react";
+import { Logo, ShuttleIcon } from "@/components/brand/logo";
 import { FacebookIcon, InstagramIcon, YoutubeIcon } from "@/components/brand/social-icons";
 import { CountUp, Reveal } from "@/components/motion/reveal";
+import { ScheduleBrowser } from "@/components/site/schedule-browser";
 import { Section, SectionHeading } from "@/components/site/section";
 import { Avatar } from "@/components/ui/avatar";
 import { LinkButton } from "@/components/ui/button";
 import type { Announcement, Coach, Program, SiteSettings, Testimonial } from "@/lib/db/schema";
 import type { PublicSlot } from "@/lib/content";
-import { capitalize, cn, formatDate, formatINR, formatTime, initials } from "@/lib/utils";
+import { cn, formatDate, formatINR, initials } from "@/lib/utils";
 
 export function StatsBand({ settings }: { settings: SiteSettings }) {
   const stats = [
@@ -70,7 +70,7 @@ export function About({ settings }: { settings: SiteSettings }) {
           {features.map((f, i) => (
             <Reveal key={f.title} delay={i * 0.08}>
               <div className="group card-hover glass h-full rounded-3xl p-6">
-                <span className="grid size-12 place-items-center rounded-2xl bg-gradient-to-br from-brand/25 to-cyan-400/10 text-brand transition group-hover:scale-110">
+                <span className="grid size-12 place-items-center rounded-2xl bg-gradient-to-br from-brand/25 to-cyan-400/10 text-brand-text transition group-hover:scale-110">
                   <f.icon className="size-6" />
                 </span>
                 <h3 className="mt-5 text-lg font-semibold text-white">{f.title}</h3>
@@ -110,7 +110,7 @@ export function Programs({ programs }: { programs: Program[] }) {
               <ul className="mt-8 flex-1 space-y-3">
                 {p.features.map((f) => (
                   <li key={f} className="flex items-start gap-3 text-sm text-white/75">
-                    <Check className="mt-0.5 size-4 shrink-0 text-brand" /> {f}
+                    <Check className="mt-0.5 size-4 shrink-0 text-brand-text" /> {f}
                   </li>
                 ))}
               </ul>
@@ -150,13 +150,13 @@ export function Coaches({ coaches }: { coaches: Coach[] }) {
                   </span>
                 )}
                 <div className="absolute inset-0 bg-gradient-to-t from-surface via-transparent to-transparent" />
-                <span className="absolute right-4 bottom-4 rounded-full bg-ink/70 px-3 py-1 text-xs font-semibold text-white backdrop-blur">
+                <span className="absolute right-4 bottom-4 theme-dark rounded-full bg-ink/70 px-3 py-1 text-xs font-semibold text-white backdrop-blur">
                   {c.experienceYears}+ yrs
                 </span>
               </div>
               <div className="p-6">
                 <h3 className="font-display text-xl font-bold text-white">{c.name}</h3>
-                <p className="text-sm font-medium text-brand">{c.title}</p>
+                <p className="text-sm font-medium text-brand-text">{c.title}</p>
                 <p className="mt-3 text-sm leading-relaxed text-white/60">{c.bio}</p>
                 {c.achievements && (
                   <p className="mt-4 flex items-start gap-2 text-xs text-amber-200/90">
@@ -177,55 +177,14 @@ export function Coaches({ coaches }: { coaches: Coach[] }) {
   );
 }
 
-const levelColors: Record<string, string> = {
-  beginner: "text-emerald-300 bg-emerald-400/10 border-emerald-400/25",
-  intermediate: "text-cyan-300 bg-cyan-400/10 border-cyan-400/25",
-  advanced: "text-amber-200 bg-amber-400/10 border-amber-400/25",
-  professional: "text-rose-300 bg-rose-400/10 border-rose-400/25",
-};
-
 export function Schedule({ slots }: { slots: PublicSlot[] }) {
   if (slots.length === 0) return null;
   return (
     <Section id="schedule">
       <SectionHeading eyebrow="Available slots" title={<>Find a batch that <span className="text-gradient">fits your day</span></>} description="Seats update live — grab yours before the batch fills up." />
-      <div className="grid gap-4 md:grid-cols-2">
-        {slots.map((s, i) => {
-          const left = Math.max(0, s.capacity - s.enrolled);
-          const pct = Math.min(100, Math.round((s.enrolled / s.capacity) * 100));
-          return (
-            <Reveal key={s.id} delay={(i % 2) * 0.08}>
-              <div className="card-hover glass flex h-full flex-col gap-5 rounded-3xl p-6 sm:flex-row sm:items-center">
-                <div className="grid size-20 shrink-0 place-items-center rounded-2xl bg-gradient-to-br from-white/10 to-white/0 text-center">
-                  <div>
-                    <p className="font-display text-xl font-bold text-white">{formatTime(s.startTime).replace(/ (AM|PM)/, "")}</p>
-                    <p className="text-[10px] font-bold tracking-widest text-white/50">{formatTime(s.startTime).slice(-2)}</p>
-                  </div>
-                </div>
-                <div className="min-w-0 flex-1">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <h3 className="text-lg font-semibold text-white">{s.title}</h3>
-                    <span className={cn("rounded-full border px-2 py-0.5 text-[11px] font-semibold", levelColors[s.level])}>{capitalize(s.level)}</span>
-                  </div>
-                  <p className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-white/55">
-                    <span className="inline-flex items-center gap-1.5"><CalendarDays className="size-3.5" />{s.days}</span>
-                    <span className="inline-flex items-center gap-1.5"><Clock className="size-3.5" />{formatTime(s.startTime)} – {formatTime(s.endTime)}</span>
-                    {s.coachName && <span className="inline-flex items-center gap-1.5"><UserRound className="size-3.5" />{s.coachName}</span>}
-                  </p>
-                  <div className="mt-3 flex items-center gap-3">
-                    <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-white/10">
-                      <div className={cn("h-full rounded-full", left === 0 ? "bg-rose-400" : pct > 75 ? "bg-amber-300" : "bg-brand")} style={{ width: `${pct}%` }} />
-                    </div>
-                    <span className={cn("text-xs font-semibold whitespace-nowrap", left === 0 ? "text-rose-300" : left <= 3 ? "text-amber-200" : "text-white/70")}>
-                      {left === 0 ? "Batch full" : `${left} spots left`}
-                    </span>
-                  </div>
-                </div>
-              </div>
-            </Reveal>
-          );
-        })}
-      </div>
+      <Reveal>
+        <ScheduleBrowser slots={slots} />
+      </Reveal>
     </Section>
   );
 }
@@ -268,7 +227,7 @@ export function Contact({ settings }: { settings: SiteSettings }) {
         <div aria-hidden className="court-grid absolute inset-0 opacity-30" />
         <div className="relative grid gap-12 lg:grid-cols-2">
           <div>
-            <p className="text-xs font-bold tracking-[0.3em] text-brand uppercase">Contact</p>
+            <p className="text-xs font-bold tracking-[0.3em] text-brand-text uppercase">Contact</p>
             <h2 className="font-display mt-3 text-4xl font-bold tracking-tight text-white sm:text-5xl">Ready to step on court?</h2>
             <p className="mt-4 max-w-md text-lg text-white/65">Register online in two minutes. Our team reviews every application and activates your membership within 24 hours.</p>
             <div className="mt-8 flex flex-wrap gap-3">
@@ -284,7 +243,7 @@ export function Contact({ settings }: { settings: SiteSettings }) {
             {items.map((it) => {
               const body = (
                 <>
-                  <it.icon className="size-5 text-brand" />
+                  <it.icon className="size-5 text-brand-text" />
                   <p className="mt-3 text-xs font-semibold tracking-wider text-white/45 uppercase">{it.label}</p>
                   <p className="mt-1 text-sm font-medium break-words text-white">{it.value}</p>
                 </>
@@ -317,19 +276,77 @@ export function Footer({ settings }: { settings: SiteSettings }) {
     { href: settings.facebookUrl, icon: FacebookIcon, label: "Facebook" },
     { href: settings.youtubeUrl, icon: YoutubeIcon, label: "YouTube" },
   ].filter((s) => s.href);
+  const explore = [
+    { href: "/#about", label: "About us" },
+    { href: "/#programs", label: "Programs & fees" },
+    { href: "/#coaches", label: "Coaches" },
+    { href: "/#schedule", label: "Batch timings" },
+    { href: "/#news", label: "Academy updates" },
+  ];
+  const account = [
+    { href: "/register", label: "Join the academy" },
+    { href: "/login", label: "Member login" },
+    { href: "/dashboard", label: "My dashboard" },
+  ];
   return (
-    <footer className="border-t border-white/10 py-10">
-      <div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-6 px-6 text-sm text-white/45 sm:flex-row">
-        <p>© {new Date().getFullYear()} {settings.academyName}. {settings.tagline}.</p>
-        <div className="flex gap-2">
-          {socials.map((s) => (
-            <a key={s.label} href={s.href!} target="_blank" rel="noreferrer" aria-label={s.label} className="grid size-9 place-items-center rounded-xl border border-white/10 bg-white/5 text-white/70 transition hover:border-brand/40 hover:text-brand">
-              <s.icon className="size-4" />
-            </a>
-          ))}
+    <footer className="relative overflow-clip border-t border-white/10 pt-16 pb-8">
+      <div aria-hidden className="absolute -bottom-40 left-1/2 h-72 w-[48rem] -translate-x-1/2 rounded-full bg-brand/10 blur-[120px]" />
+      <div className="relative mx-auto max-w-7xl px-6">
+        <div className="grid gap-12 sm:grid-cols-2 lg:grid-cols-[1.4fr_1fr_1fr_1.3fr]">
+          <div>
+            <Logo name={settings.academyName.split(" ")[0]} />
+            <p className="mt-5 max-w-xs text-sm leading-relaxed text-white/55">{settings.tagline}. Coaching for every age and every level, from first grip to first medal.</p>
+            {socials.length > 0 && (
+              <div className="mt-6 flex gap-2">
+                {socials.map((s) => (
+                  <a key={s.label} href={s.href!} target="_blank" rel="noreferrer" aria-label={s.label} className="grid size-10 place-items-center rounded-xl border border-white/10 bg-white/5 text-white/70 transition hover:-translate-y-0.5 hover:border-brand/40 hover:text-brand-text">
+                    <s.icon className="size-4" />
+                  </a>
+                ))}
+              </div>
+            )}
+          </div>
+          <FooterLinks title="Explore" links={explore} />
+          <FooterLinks title="Members" links={account} />
+          <div>
+            <p className="text-xs font-bold tracking-[0.2em] text-white/40 uppercase">Visit us</p>
+            <ul className="mt-4 space-y-3 text-sm text-white/65">
+              <li className="flex gap-2.5"><MapPin className="mt-0.5 size-4 shrink-0 text-brand-text" /> {settings.address}</li>
+              <li className="flex gap-2.5"><Clock className="mt-0.5 size-4 shrink-0 text-brand-text" /> {settings.openingHours}</li>
+              <li className="flex gap-2.5">
+                <Phone className="mt-0.5 size-4 shrink-0 text-brand-text" />
+                <a href={`tel:${settings.phone.replace(/s/g, "")}`} className="hover:text-white">{settings.phone}</a>
+              </li>
+              <li className="flex gap-2.5">
+                <Mail className="mt-0.5 size-4 shrink-0 text-brand-text" />
+                <a href={`mailto:${settings.email}`} className="break-all hover:text-white">{settings.email}</a>
+              </li>
+            </ul>
+          </div>
+        </div>
+        <div className="mt-14 flex flex-col items-center justify-between gap-3 border-t border-white/10 pt-6 text-xs text-white/40 sm:flex-row">
+          <p>© {new Date().getFullYear()} {settings.academyName}. All rights reserved.</p>
+          <p className="flex items-center gap-1.5">
+            Made with <ShuttleIcon className="size-3.5" /> for the love of the game
+          </p>
         </div>
       </div>
     </footer>
+  );
+}
+
+function FooterLinks({ title, links }: { title: string; links: { href: string; label: string }[] }) {
+  return (
+    <nav aria-label={title}>
+      <p className="text-xs font-bold tracking-[0.2em] text-white/40 uppercase">{title}</p>
+      <ul className="mt-4 space-y-2.5 text-sm">
+        {links.map((l) => (
+          <li key={l.href}>
+            <a href={l.href} className="text-white/65 transition hover:text-brand-text">{l.label}</a>
+          </li>
+        ))}
+      </ul>
+    </nav>
   );
 }
 
@@ -344,7 +361,7 @@ export function Testimonials({ items }: { items: Testimonial[] }) {
     <section id="testimonials" aria-labelledby="testimonials-heading" className="relative scroll-mt-24 overflow-clip border-y border-white/10 bg-gradient-to-r from-brand/[0.07] via-surface to-cyan-500/[0.07] py-12 sm:py-16">
       <div className="mx-auto mb-8 flex max-w-7xl flex-wrap items-end justify-between gap-4 px-6">
         <div>
-          <p className="text-xs font-bold tracking-[0.3em] text-brand uppercase">Testimonials</p>
+          <p className="text-xs font-bold tracking-[0.3em] text-brand-text uppercase">Testimonials</p>
           <h2 id="testimonials-heading" className="font-display mt-2 text-3xl font-bold text-white sm:text-4xl">
             Heard <span className="text-gradient">on court</span>
           </h2>
@@ -362,7 +379,7 @@ export function Testimonials({ items }: { items: Testimonial[] }) {
                 className="glass flex w-[22rem] shrink-0 flex-col rounded-3xl p-6 sm:w-[26rem]"
               >
                 <div className="flex items-center justify-between">
-                  <Quote className="size-7 text-brand/70" />
+                  <Quote className="size-7 text-brand-text/70" />
                   <p className="text-sm text-amber-300" aria-label={`${t.rating} out of 5 stars`}>
                     {"★".repeat(t.rating)}
                     <span className="text-white/15">{"★".repeat(5 - t.rating)}</span>

@@ -1,5 +1,6 @@
 import { Logo, ShuttleIcon } from "@/components/brand/logo";
 import { AuthShowcase } from "@/components/site/auth-showcase";
+import { ThemeToggle } from "@/components/theme/theme-toggle";
 
 export default function AuthLayout({ children }: LayoutProps<"/">) {
   return (
@@ -20,7 +21,8 @@ export default function AuthLayout({ children }: LayoutProps<"/">) {
           <AuthShowcase />
         </div>
       </aside>
-      <main className="relative flex items-center justify-center px-6 py-16">
+      <main id="main" className="relative flex items-center justify-center px-6 py-16">
+        <ThemeToggle className="absolute top-4 right-4 z-10" />
         <div aria-hidden className="absolute top-0 right-0 size-72 rounded-full bg-brand/10 blur-[100px] lg:hidden" />
         <div className="relative w-full max-w-md">
           <div className="mb-10 lg:hidden">

@@ -258,3 +258,20 @@ export function parsePage(raw: unknown) {
 export const promoteByEmailSchema = z.object({
   email: z.email({ error: "Enter a valid email" }),
 });
+
+const newPassword = z.string().min(8, { error: "At least 8 characters" }).max(128);
+
+/** Admin sets a new password for a member (e.g. they forgot theirs). */
+export const adminResetPasswordSchema = z
+  .object({ password: newPassword, confirmPassword: z.string() })
+  .refine((v) => v.password === v.confirmPassword, { path: ["confirmPassword"], error: "Passwords don't match" });
+
+/** A signed-in user changes their own password. */
+export const changePasswordSchema = z
+  .object({
+    currentPassword: z.string().min(1, { error: "Enter your current password" }),
+    newPassword,
+    confirmPassword: z.string(),
+  })
+  .refine((v) => v.newPassword === v.confirmPassword, { path: ["confirmPassword"], error: "Passwords don't match" })
+  .refine((v) => v.newPassword !== v.currentPassword, { path: ["newPassword"], error: "Pick a password you haven't used here" });

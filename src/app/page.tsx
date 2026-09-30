@@ -1,5 +1,6 @@
 import { Hero } from "@/components/site/hero";
 import { Navbar } from "@/components/site/navbar";
+import { SiteChrome } from "@/components/site/site-chrome";
 import {
   About,
   Coaches,
@@ -22,7 +23,7 @@ export default async function HomePage() {
     return (
       <main className="grid min-h-dvh place-items-center p-6 text-center text-white/70">
         <p>
-          Site content hasn&apos;t been set up yet. Run <code className="text-brand">npm run db:seed</code>.
+          Site content hasn&apos;t been set up yet. Run <code className="text-brand-text">npm run db:seed</code>.
         </p>
       </main>
     );
@@ -34,7 +35,7 @@ export default async function HomePage() {
         academyName={settings.academyName}
         user={session ? { name: session.user.name, role: session.user.role } : null}
       />
-      <main>
+      <main id="main">
         <Hero
           tagline={settings.tagline}
           title={settings.heroTitle}
@@ -58,6 +59,7 @@ export default async function HomePage() {
         <Contact settings={settings} />
       </main>
       <Footer settings={settings} />
+      <SiteChrome whatsapp={settings.whatsapp} />
     </>
   );
 }

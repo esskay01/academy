@@ -24,7 +24,8 @@ export function SignOutButton({ compact = false }: { compact?: boolean }) {
       }
     >
       {pending ? <Loader2 className="size-3.5 animate-spin" /> : <LogOut className="size-3.5" />}
-      {!compact && "Sign out"}
+      {/* Icon-only on phones (the aria-label names it); labelled from sm up. */}
+      {!compact && <span className="hidden sm:inline">Sign out</span>}
     </Button>
   );
 }

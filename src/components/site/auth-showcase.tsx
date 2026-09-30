@@ -37,7 +37,7 @@ export function AuthShowcase() {
             transition={{ delay: 0.2 + idx * 0.15, duration: 0.5 }}
             className="relative"
           >
-            <span className="absolute top-0.5 -left-[2.3rem] grid size-7 place-items-center rounded-full border border-brand/40 bg-ink text-brand">
+            <span className="absolute top-0.5 -left-[2.3rem] grid size-7 place-items-center rounded-full border border-brand/40 bg-canvas text-brand-text">
               <s.icon className="size-3.5" />
             </span>
             <p className="font-semibold text-white">{s.title}</p>
@@ -47,7 +47,7 @@ export function AuthShowcase() {
       </ol>
 
       <div className="glass relative max-w-md overflow-hidden rounded-2xl p-5">
-        <p className="flex items-center gap-1.5 text-[10px] font-bold tracking-[0.25em] text-brand uppercase">
+        <p className="flex items-center gap-1.5 text-[10px] font-bold tracking-[0.25em] text-brand-text uppercase">
           <Zap className="size-3.5" /> Did you know?
         </p>
         <div className="mt-3 min-h-24">

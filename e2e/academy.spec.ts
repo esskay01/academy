@@ -1,3 +1,4 @@
+import { AxeBuilder } from "@axe-core/playwright";
 import { expect, test, type Page } from "@playwright/test";
 
 const ADMIN_EMAIL = process.env.ADMIN_EMAIL ?? "admin@bajrang.academy";
@@ -35,7 +36,7 @@ async function login(page: Page, email: string, password: string, as: "player" |
   await page.goto("/login");
   if (as === "admin") await page.getByRole("tab", { name: "Admin login" }).click();
   await page.getByLabel("Email").fill(email);
-  await page.getByLabel("Password").fill(password);
+  await page.getByLabel("Password", { exact: true }).fill(password);
 
   // Better Auth rate-limits sign-in (a few attempts per 10s per IP) in production.
   // This suite logs in many times in quick succession, so wait out the window
@@ -481,4 +482,189 @@ test("admin edits the hero highlight chips; a blank value hides a chip", async (
   await expect(page.getByTestId("hero-chip-1")).toContainText("Since 2014");
   await expect(page.getByTestId("hero-chip-1")).toContainText(value);
   await expect(page.getByTestId("hero-chip-2")).toHaveCount(0);
+});
+
+test("password field: show/hide toggle and live strength meter on sign-up", async ({ page }) => {
+  await page.goto("/register");
+  const pw = page.getByLabel("Password", { exact: true });
+  await pw.fill("password");
+  await expect(page.getByTestId("password-strength")).toContainText("Weak");
+  await pw.fill(PASSWORD);
+  await expect(page.getByTestId("password-strength")).toContainText("Strong");
+  await expect(pw).toHaveAttribute("type", "password");
+  await page.getByRole("button", { name: "Show password" }).first().click();
+  await expect(pw).toHaveAttribute("type", "text");
+});
+
+test("member changes their own password; admin resets it", async ({ page }) => {
+  const email = `pw-${unique()}@test.dev`;
+  const changed = "Changed@12345";
+  const reset = "Reset@123456";
+  await register(page, "Password Player", email);
+
+  // Member: wrong current password is rejected, then a real change succeeds.
+  await page.getByLabel("Current password").fill("Wrong@12345");
+  await page.getByLabel("New password", { exact: true }).fill(changed);
+  await page.getByLabel("Confirm new password").fill(changed);
+  await page.getByRole("button", { name: "Update password" }).click();
+  await expect(page.getByText("Your current password is incorrect.")).toBeVisible();
+  await page.getByLabel("Current password").fill(PASSWORD);
+  await page.getByRole("button", { name: "Update password" }).click();
+  await expect(page.getByText("Password updated.")).toBeVisible();
+
+  await login(page, email, changed);
+  await page.waitForURL("**/dashboard");
+
+  // Admin: reset it from the member's edit page.
+  await loginAdmin(page);
+  await page.goto(`/admin/members?q=${encodeURIComponent(email)}`);
+  await memberRow(page, email).getByRole("link", { name: "Edit" }).click();
+  await page.getByLabel("New password", { exact: true }).fill(reset);
+  await page.getByLabel("Confirm new password").fill(reset);
+  await page.getByRole("button", { name: "Reset password" }).click();
+  await expect(page.getByText("password was reset")).toBeVisible();
+
+  await login(page, email, reset);
+  await page.waitForURL("**/dashboard");
+});
+
+test("unknown pages show the branded 404", async ({ page }) => {
+  const res = await page.goto("/no-such-page");
+  expect(res?.status()).toBe(404);
+  await expect(page.getByRole("heading", { name: "Out of bounds!" })).toBeVisible();
+  await page.getByRole("link", { name: "Back to home" }).click();
+  await expect(page).toHaveURL(/\/$/);
+});
+
+test("theme switcher: light/dark choice applies instantly and persists across pages", async ({ page }) => {
+  await page.goto("/");
+  const html = page.locator("html");
+  await expect(html).toHaveAttribute("data-theme", "dark");
+  const bodyBg = () => page.evaluate(() => getComputedStyle(document.body).backgroundColor);
+  const darkBg = await bodyBg();
+
+  await page.getByRole("radio", { name: "Light theme" }).first().click();
+  await expect(html).toHaveAttribute("data-theme", "light");
+  await expect.poll(bodyBg).not.toBe(darkBg);
+
+  // Persisted and applied before paint on the next page (no flash back to dark).
+  await page.goto("/login");
+  await expect(html).toHaveAttribute("data-theme", "light");
+  await expect(page.getByRole("radio", { name: "Light theme" })).toHaveAttribute("aria-checked", "true");
+
+  await page.getByRole("radio", { name: "Dark theme" }).click();
+  await page.reload();
+  await expect(html).toHaveAttribute("data-theme", "dark");
+});
+
+test("admin overview: registrations chart, fees, renewals and batch occupancy", async ({ page }) => {
+  // A fresh registration lands in this week's bar.
+  await register(page, "Chart Player", `chart-${unique()}@test.dev`);
+  await loginAdmin(page);
+
+  const chart = page.getByTestId("signups-chart");
+  await expect(chart).toContainText("New registrations");
+  const thisWeek = chart.getByLabel(/registrations$/).last();
+  await thisWeek.hover();
+  await expect(chart.getByRole("tooltip")).toContainText(/[1-9]\d* registrations?/);
+
+  await expect(page.getByTestId("fees-collected")).toContainText("₹");
+  await expect(page.getByTestId("fees-due")).toContainText("₹");
+  await expect(page.getByRole("heading", { name: "Renewals due" })).toBeVisible();
+  await expect(page.getByTestId("occupancy").getByRole("meter").first()).toBeVisible();
+});
+
+test("link previews: home page advertises a 1200×630 share image", async ({ page, request }) => {
+  await page.goto("/");
+  const og = await page.locator('meta[property="og:image"]').getAttribute("content");
+  expect(og).toMatch(/\/opengraph-image/);
+  await expect(page.locator('meta[property="og:image:width"]')).toHaveAttribute("content", "1200");
+  await expect(page.locator('meta[name="twitter:card"]')).toHaveAttribute("content", "summary_large_image");
+  const res = await request.get(new URL(og!).pathname + new URL(og!).search);
+  expect(res.status()).toBe(200);
+  expect(res.headers()["content-type"]).toBe("image/png");
+});
+
+test("accessibility: key pages pass axe WCAG 2.1 AA in both themes", async ({ browser }) => {
+  test.setTimeout(240_000);
+  for (const theme of ["dark", "light"]) {
+    const context = await browser.newContext({ reducedMotion: "reduce" });
+    await context.addInitScript((t) => localStorage.setItem("theme", t), theme);
+    const page = await context.newPage();
+    const audit = async (path: string) => {
+      await page.goto(path);
+      // Scroll through so reveal-on-scroll content is visible when audited.
+      const height = await page.evaluate(() => document.body.scrollHeight);
+      for (let y = 0; y < height; y += 700) await page.evaluate((v) => window.scrollTo(0, v), y);
+      await page.waitForTimeout(500);
+      const { violations } = await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21aa"]).analyze();
+      const summary = violations.map((v) => `${v.id}: ${v.nodes.map((n) => n.target.join(" ")).join(", ")}`);
+      expect(summary, `${theme} ${path}`).toEqual([]);
+    };
+    for (const path of ["/", "/login", "/register"]) await audit(path);
+    await login(page, ADMIN_EMAIL, ADMIN_PASSWORD, "admin");
+    for (const path of ["/admin", "/admin/members", "/dashboard"]) await audit(path);
+    await context.close();
+  }
+});
+
+test("admin members on a phone: rows become cards with status and actions on screen", async ({ page }) => {
+  const email = `phone-${unique()}@test.dev`;
+  await register(page, "Phone Card", email);
+  await page.setViewportSize({ width: 390, height: 844 });
+  await loginAdmin(page);
+  await page.goto(`/admin/members?q=${encodeURIComponent(email)}`);
+
+  const row = memberRow(page, email);
+  const inViewport = async (locator: ReturnType<Page["locator"]>) => {
+    const box = (await locator.boundingBox())!;
+    return box.x >= 0 && box.x + box.width <= 390;
+  };
+  await expect(row.getByTestId("status-badge")).toBeVisible();
+  expect(await inViewport(row.getByTestId("status-badge"))).toBe(true);
+  expect(await inViewport(row.getByRole("button", { name: "Approve" }))).toBe(true);
+  // Cells label themselves in card layout; the table header is hidden.
+  await expect(row.locator('td[data-label="Phone"]')).toContainText("+91");
+  await expect(page.locator("thead")).toBeHidden();
+  // No sideways scrolling.
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
+});
+
+test("responsive: no page scrolls sideways on a 360px phone or a 768px tablet", async ({ browser }) => {
+  test.setTimeout(240_000);
+  const publicPaths = ["/", "/login", "/register"];
+  const adminPaths = ["/admin", "/admin/inbox", "/admin/members", "/admin/admins", "/admin/coaches", "/admin/slots", "/admin/programs", "/admin/announcements", "/admin/testimonials", "/admin/settings", "/dashboard"];
+  for (const width of [360, 768]) {
+    const context = await browser.newContext({ viewport: { width, height: 800 }, reducedMotion: "reduce" });
+    const page = await context.newPage();
+    const widths: Record<string, number> = {};
+    const measure = async (path: string) => {
+      await page.goto(path);
+      widths[path] = await page.evaluate(() => document.documentElement.scrollWidth);
+    };
+    for (const path of publicPaths) await measure(path);
+    await login(page, ADMIN_EMAIL, ADMIN_PASSWORD, "admin");
+    for (const path of adminPaths) await measure(path);
+    const overflowing = Object.entries(widths).filter(([, w]) => w > width);
+    expect(overflowing, `pages wider than ${width}px`).toEqual([]);
+    await context.close();
+  }
+});
+
+test("batch finder filters the schedule by level", async ({ page }) => {
+  await page.goto("/#schedule");
+  const cards = page.locator("#schedule").getByTestId("batch-card");
+  const total = await cards.count();
+  expect(total).toBeGreaterThan(1);
+
+  // Seed data has beginner batches; the chip shows how many.
+  const beginner = page.getByRole("button", { name: /^Beginner \d+$/ });
+  const expected = Number((await beginner.innerText()).match(/\d+/)![0]);
+  await beginner.click();
+  await expect(beginner).toHaveAttribute("aria-pressed", "true");
+  await expect(cards).toHaveCount(expected);
+  for (const card of await cards.all()) await expect(card).toContainText("Beginner");
+
+  await page.getByRole("button", { name: /^All batches/ }).click();
+  await expect(cards).toHaveCount(total);
 });

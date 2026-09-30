@@ -41,7 +41,7 @@ const SLOTS: Slot[] = [
 
 const TEAM_STYLE: Record<Team, { body: string; ring: string; text: string; label: string }> = {
   cyan: { body: "from-cyan-200 to-sky-500", ring: "ring-cyan-300/60", text: "text-cyan-300", label: "Cyan" },
-  lime: { body: "from-[#e4ff7a] to-lime-500", ring: "ring-brand/60", text: "text-brand", label: "Lime" },
+  lime: { body: "from-[#e4ff7a] to-lime-500", ring: "ring-brand/60", text: "text-brand-text", label: "Lime" },
 };
 
 // The court lines' box inside the card (matches CourtLines' 400×500 viewBox: 30..370 × 30..470).
@@ -521,7 +521,7 @@ export function CourtGame({ onActiveChange }: { onActiveChange?: (active: boolea
       ref={boxRef}
       data-testid="court-game"
       className={cn(
-        "absolute inset-0 overflow-hidden rounded-[2.5rem] border border-brand/25 bg-surface/90 shadow-[0_30px_80px_-30px] shadow-brand/30 select-none",
+        "theme-dark absolute inset-0 overflow-hidden rounded-[2.5rem] border border-brand/25 bg-surface/90 shadow-[0_30px_80px_-30px] shadow-brand/30 select-none",
         playing && "cursor-crosshair touch-none",
       )}
       onPointerMove={aimAt}
@@ -598,7 +598,7 @@ export function CourtGame({ onActiveChange }: { onActiveChange?: (active: boolea
               <span className="rounded-full border border-white/10 bg-ink/70 px-2.5 py-1 text-[11px] font-bold backdrop-blur" aria-label={`Score: Cyan ${score.cyan}, Lime ${score.lime}`}>
                 <span className="text-cyan-300">Cyan {score.cyan}</span>
                 <span className="text-white/40"> – </span>
-                <span className="text-brand">{score.lime} Lime</span>
+                <span className="text-brand-text">{score.lime} Lime</span>
               </span>
             </div>
             <div className="absolute inset-x-4 bottom-4 flex flex-col items-center gap-2">
@@ -700,7 +700,7 @@ export function CourtGame({ onActiveChange }: { onActiveChange?: (active: boolea
           <motion.div key="play" className="pointer-events-none absolute inset-0" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
             <div data-testid="game-hud" className="absolute inset-x-4 top-4 flex items-center justify-between gap-2">
               <span className="rounded-full border border-white/10 bg-ink/75 px-3 py-1 text-xs text-white/80 backdrop-blur">
-                <span className="font-semibold text-white">{name}</span> · Returns <span className="font-bold text-brand">{returns}</span>
+                <span className="font-semibold text-white">{name}</span> · Returns <span className="font-bold text-brand-text">{returns}</span>
               </span>
               <button type="button" onClick={backToDemo} className="pointer-events-auto grid size-8 place-items-center rounded-full bg-ink/80 text-white/80 hover:text-white" aria-label="Quit rally">
                 <X className="size-4" />
