@@ -23,8 +23,27 @@ async function register(page: Page, name: string, email: string) {
   await page.getByLabel("Blood group").selectOption("B+");
   await page.getByLabel("Password", { exact: true }).fill(PASSWORD);
   await page.getByLabel("Confirm password").fill(PASSWORD);
-  await page.getByRole("button", { name: "Create my account" }).click();
-  await page.waitForURL("**/dashboard**");
+
+  // Better Auth rate-limits sign-up (3 per 10s per IP) in production builds, and
+  // on fast CI runners consecutive tests hit it. Wait out the window and retry,
+  // as login() does, instead of weakening the limiter for tests.
+  for (let attempt = 0; attempt < 4; attempt++) {
+    await page.getByRole("button", { name: "Create my account" }).click();
+    const outcome = await Promise.race([
+      page
+        .waitForURL("**/dashboard**", { timeout: 15_000 })
+        .then(() => "navigated")
+        .catch(() => "timeout"),
+      formAlert(page)
+        .waitFor({ timeout: 15_000 })
+        .then(() => "alert")
+        .catch(() => "timeout"),
+    ]);
+    if (outcome === "navigated") return;
+    if (outcome === "alert" && !(await formAlert(page).innerText()).includes("Too many requests")) break;
+    await page.waitForTimeout(11_000);
+  }
+  await page.waitForURL("**/dashboard**", { timeout: 5_000 });
 }
 
 /** The form's own error message (Next.js also renders an empty role=alert route announcer). */
@@ -665,11 +684,18 @@ test("registration requires a blood group", async ({ page }) => {
   await expect(page).toHaveURL(/\/register/);
 
   // The server refuses it too, not just the form.
-  const res = await page.request.post("/api/auth/sign-up/email", {
-    // Same-origin like a browser, so this tests the blood-group rule, not CSRF protection.
-    headers: { origin: new URL(page.url()).origin },
-    data: { name: "Api Bypass", email: `nobg-api-${unique()}@test.dev`, password: PASSWORD, phone: "+919876543210", skillLevel: "beginner" },
-  });
+  const signUpWithoutBloodGroup = () =>
+    page.request.post("/api/auth/sign-up/email", {
+      // Same-origin like a browser, so this tests the blood-group rule, not CSRF protection.
+      headers: { origin: new URL(page.url()).origin },
+      data: { name: "Api Bypass", email: `nobg-api-${unique()}@test.dev`, password: PASSWORD, phone: "+919876543210", skillLevel: "beginner" },
+    });
+  // The sign-up rate limiter runs before the blood-group check; wait out a 429 if earlier tests used the window.
+  let res = await signUpWithoutBloodGroup();
+  for (let attempt = 0; res.status() === 429 && attempt < 3; attempt++) {
+    await page.waitForTimeout(11_000);
+    res = await signUpWithoutBloodGroup();
+  }
   expect(res.status()).toBe(400);
   expect(await res.text()).toContain("blood group");
 });
