@@ -15,6 +15,7 @@ const validRegistration = {
   phone: "9876543210",
   dateOfBirth: "2010-05-14",
   skillLevel: "beginner",
+  bloodGroup: "B+",
   password: "supersecret",
   confirmPassword: "supersecret",
 };
@@ -22,6 +23,14 @@ const validRegistration = {
 describe("registerFormSchema", () => {
   it("accepts a complete registration", () => {
     expect(registerFormSchema.safeParse(validRegistration).success).toBe(true);
+  });
+
+  it("requires a valid blood group (printed on the ID card)", () => {
+    for (const bloodGroup of ["", "C+", undefined]) {
+      const r = registerFormSchema.safeParse({ ...validRegistration, bloodGroup });
+      expect(r.success).toBe(false);
+      expect(r.error?.issues[0]?.path).toEqual(["bloodGroup"]);
+    }
   });
 
   it("rejects mismatched passwords on confirmPassword", () => {

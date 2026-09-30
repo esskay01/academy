@@ -20,6 +20,7 @@ async function register(page: Page, name: string, email: string) {
   await page.getByLabel("Phone").fill("9876543210");
   await page.getByLabel("Date of birth").fill("2008-04-12");
   await page.getByLabel("Current skill level").selectOption("intermediate");
+  await page.getByLabel("Blood group").selectOption("B+");
   await page.getByLabel("Password", { exact: true }).fill(PASSWORD);
   await page.getByLabel("Confirm password").fill(PASSWORD);
   await page.getByRole("button", { name: "Create my account" }).click();
@@ -649,6 +650,122 @@ test("responsive: no page scrolls sideways on a 360px phone or a 768px tablet", 
     expect(overflowing, `pages wider than ${width}px`).toEqual([]);
     await context.close();
   }
+});
+
+test("registration requires a blood group", async ({ page }) => {
+  await page.goto("/register");
+  await page.getByLabel("Full name").fill("No Blood Group");
+  await page.getByLabel("Email").fill(`nobg-${unique()}@test.dev`);
+  await page.getByLabel("Phone").fill("9876543210");
+  await page.getByLabel("Date of birth").fill("2008-04-12");
+  await page.getByLabel("Password", { exact: true }).fill(PASSWORD);
+  await page.getByLabel("Confirm password").fill(PASSWORD);
+  await page.getByRole("button", { name: "Create my account" }).click();
+  await expect(page.getByText("Select your blood group")).toBeVisible();
+  await expect(page).toHaveURL(/\/register/);
+
+  // The server refuses it too, not just the form.
+  const res = await page.request.post("/api/auth/sign-up/email", {
+    // Same-origin like a browser, so this tests the blood-group rule, not CSRF protection.
+    headers: { origin: new URL(page.url()).origin },
+    data: { name: "Api Bypass", email: `nobg-api-${unique()}@test.dev`, password: PASSWORD, phone: "+919876543210", skillLevel: "beginner" },
+  });
+  expect(res.status()).toBe(400);
+  expect(await res.text()).toContain("blood group");
+});
+
+test("ID card: member ID on approval, no card without photo, CR80 PDF, QR verification and reissue", async ({ page, browser }) => {
+  test.setTimeout(180_000);
+  const email = `card-${unique()}@test.dev`;
+  await register(page, `Card ${uniqueWord()}`, email);
+  // No member ID until approved.
+  await expect(page.getByText("Issued on approval")).toBeVisible();
+
+  await loginAdmin(page);
+  await page.goto(`/admin/members?q=${encodeURIComponent(email)}`);
+  const row = memberRow(page, email);
+  await row.getByRole("button", { name: "Approve" }).click();
+  await expect(row.getByTestId("member-code")).toHaveText(/^BBA-\d{4}-\d{5}$/);
+  const code = (await row.getByTestId("member-code").innerText()).trim();
+
+  // Searchable by member ID.
+  await page.goto(`/admin/members?q=${code}`);
+  await expect(memberRow(page, email)).toBeVisible();
+
+  // Without a photo the card can't be printed or downloaded.
+  await memberRow(page, email).getByRole("link", { name: "Edit" }).click();
+  await page.waitForURL(/\/admin\/members\/[^/?]+$/);
+  const memberUrl = page.url();
+  await page.getByRole("link", { name: "ID card" }).click();
+  await expect(page.getByTestId("id-card-issues")).toContainText("photo");
+  await expect(page.getByRole("link", { name: "Download PDF" })).toHaveCount(0);
+  const blocked = await page.request.get(`${new URL(memberUrl).pathname}/id-card/pdf`);
+  expect(blocked.status()).toBe(409);
+
+  // With a photo it's ready: a 2-page CR80 PDF (85.6 × 53.98 mm) named after the ID.
+  await page.goto(memberUrl);
+  await page.locator("#member-photo").setInputFiles({ name: "me.png", mimeType: "image/png", buffer: PNG });
+  await page.getByRole("button", { name: "Save member" }).click();
+  await expect(page.getByText("details were saved")).toBeVisible();
+  await page.getByRole("link", { name: "ID card" }).click();
+  const download = page.getByRole("link", { name: "Download PDF" });
+  await expect(download).toBeVisible();
+  const pdf = await page.request.get((await download.getAttribute("href"))!);
+  expect(pdf.status()).toBe(200);
+  expect(pdf.headers()["content-type"]).toBe("application/pdf");
+  expect(pdf.headers()["content-disposition"]).toContain(`attachment; filename="${code}-id-card.pdf"`);
+  const body = (await pdf.body()).toString("latin1");
+  expect(body.startsWith("%PDF-")).toBe(true);
+  expect(body.match(/\/Type \/Page\b/g)).toHaveLength(2);
+  expect(body).toMatch(/\/MediaBox \[ 0 0 242\.6\d* 153\.0\d* \]/);
+
+  // Non-admins can't fetch cards: logged out → sent to login (never a PDF);
+  // a signed-in member passes the proxy's cookie check but the route refuses (403).
+  const pdfPath = new URL(pdf.url()).pathname;
+  const anon = await browser.newContext();
+  const loggedOut = await anon.request.get(pdfPath, { maxRedirects: 0 });
+  expect(loggedOut.status()).toBe(307);
+  expect(loggedOut.headers()["location"]).toContain("/login");
+  const memberContext = await browser.newContext();
+  const memberPage = await memberContext.newPage();
+  await login(memberPage, email, PASSWORD);
+  await memberPage.waitForURL("**/dashboard");
+  await expect(memberPage.getByText(code)).toBeVisible(); // their own member ID on the dashboard
+  expect((await memberPage.request.get(pdfPath)).status()).toBe(403);
+  await memberContext.close();
+
+  // The QR's verification page works logged out and shows live status.
+  const verifyPath = (await page.getByRole("link", { name: "Open verification page" }).getAttribute("href"))!;
+  const publicPage = await anon.newPage();
+  await publicPage.goto(verifyPath);
+  await expect(publicPage.getByTestId("verify-result")).toHaveAttribute("data-status", "active");
+  await expect(publicPage.getByRole("heading", { name: "Valid member" })).toBeVisible();
+  await expect(publicPage.getByTestId("verify-member-code")).toHaveText(code);
+  await expect(publicPage.getByTestId("verify-plan")).toHaveText("No membership recorded");
+
+  // Front-desk scan of the Code 128 (member ID) finds the same member.
+  await page.goto("/admin/verify");
+  await page.getByLabel("Member ID or card scan").fill(code.toLowerCase());
+  await page.getByLabel("Member ID or card scan").press("Enter");
+  await expect(page.getByTestId("verify-member-code")).toHaveText(code);
+
+  // Lost card: reissue → the old QR stops verifying; the member ID stays the same.
+  await page.goto(`${new URL(memberUrl).pathname}/id-card`);
+  await page.getByRole("button", { name: /Reissue card/ }).click();
+  await page.getByRole("button", { name: /Old card stops working/ }).click();
+  await expect(page.getByText("New card issued")).toBeVisible();
+  await publicPage.reload();
+  await expect(publicPage.getByRole("heading", { name: "Card not recognised" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Open verification page" })).not.toHaveAttribute("href", verifyPath);
+  await expect(page.getByRole("heading", { name: "Member ID card" })).toBeVisible();
+  await expect(page.getByText(code).first()).toBeVisible();
+
+  // Accessibility of the new pages.
+  for (const p of [page, publicPage]) {
+    const { violations } = await new AxeBuilder({ page: p }).withTags(["wcag2a", "wcag2aa", "wcag21aa"]).analyze();
+    expect(violations.map((v) => `${v.id}: ${v.nodes.map((n) => n.target.join(" ")).join(", ")}`)).toEqual([]);
+  }
+  await anon.close();
 });
 
 test("batch finder filters the schedule by level", async ({ page }) => {

@@ -1,11 +1,12 @@
 import { asc, eq } from "drizzle-orm";
-import { ArrowLeft, KeyRound } from "lucide-react";
+import { ArrowLeft, IdCard, KeyRound } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { MemberEditForm, ResetPasswordForm } from "@/components/admin/forms";
 import { MembershipManager } from "@/components/admin/membership-manager";
 import { PageHeader } from "@/components/admin/page-header";
+import { buttonClass } from "@/components/ui/button";
 import { RoleBadge, StatusBadge } from "@/components/ui/status-badge";
 import { requireAdmin } from "@/lib/dal";
 import { db } from "@/lib/db";
@@ -31,10 +32,16 @@ export default async function EditMemberPage(props: PageProps<"/admin/members/[i
       <Link href="/admin/members" className="mb-4 inline-flex items-center gap-1.5 text-sm text-white/55 hover:text-white">
         <ArrowLeft className="size-4" /> Back to members
       </Link>
-      <PageHeader title={`Edit ${member.name}`} description={`Member since ${formatDate(member.createdAt)}`}>
-        <div className="flex items-center gap-2">
+      <PageHeader
+        title={`Edit ${member.name}`}
+        description={`${member.memberCode ? `Member ID ${member.memberCode} · ` : ""}Member since ${formatDate(member.createdAt)}`}
+      >
+        <div className="flex flex-wrap items-center gap-2">
           <RoleBadge role={member.role} />
           <StatusBadge status={member.status} />
+          <Link href={`/admin/members/${member.id}/id-card`} className={buttonClass("secondary", "sm")}>
+            <IdCard className="size-3.5" /> ID card
+          </Link>
         </div>
       </PageHeader>
       <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(0,1.15fr)]">

@@ -9,10 +9,10 @@ import {
   text,
   timestamp,
 } from "drizzle-orm/pg-core";
-import { SKILL_LEVELS, USER_STATUSES } from "../constants";
+import { BLOOD_GROUPS, SKILL_LEVELS, USER_STATUSES } from "../constants";
 
-export { SKILL_LEVELS, USER_STATUSES };
-export type { SkillLevel, UserStatus } from "../constants";
+export { BLOOD_GROUPS, SKILL_LEVELS, USER_STATUSES };
+export type { BloodGroup, SkillLevel, UserStatus } from "../constants";
 
 // ---------------------------------------------------------------------------
 // Better Auth tables (core + admin plugin fields + our additionalFields).
@@ -43,6 +43,13 @@ export const user = pgTable("user", {
     .default("beginner"),
   status: text("status", { enum: USER_STATUSES }).notNull().default("pending"),
   statusUpdatedAt: timestamp("status_updated_at"),
+  bloodGroup: text("blood_group", { enum: BLOOD_GROUPS }),
+  // ID card. Both are filled by the `issue_member_code` DB trigger (see the
+  // 0004 migration) the first time a member becomes active; member_code never
+  // changes afterwards. verify_token is the secret in the card's QR link and is
+  // replaced when a card is reissued, which invalidates the old card.
+  memberCode: text("member_code").unique(),
+  verifyToken: text("verify_token").unique(),
 });
 
 export const session = pgTable(

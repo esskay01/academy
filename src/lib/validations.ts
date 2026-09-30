@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { SKILL_LEVELS } from "@/lib/constants";
+import { BLOOD_GROUPS, SKILL_LEVELS } from "@/lib/constants";
 
 /** Free-form contact number (the academy's own phone on the website). */
 const phone = z
@@ -31,16 +31,30 @@ const dateOfBirth = z
   }, "Enter a valid date of birth");
 
 const skillLevel = z.enum(SKILL_LEVELS, { error: "Pick a skill level" });
+const bloodGroup = z.enum(BLOOD_GROUPS, { error: "Select your blood group" });
+/** Admin forms: blood group may be left unset for members who registered before it existed. */
+const optionalBloodGroup = z
+  .union([z.literal(""), bloodGroup])
+  .optional()
+  .transform((v) => v || null);
 
-/** Server-side check for the academy fields Better Auth receives on sign-up. */
+/**
+ * Server-side check for the academy fields on every user insert. Blood group is
+ * optional here (the seed admin and admin-created admins have none); the public
+ * sign-up endpoint additionally requires it (see signUpBloodGroupSchema).
+ */
 export const registrationExtrasSchema = z.object({
   phone: storedMobile,
+  bloodGroup: bloodGroup.nullish().transform((v) => v ?? null),
   dateOfBirth: z
     .union([z.literal(""), dateOfBirth])
     .nullish()
     .transform((v) => v || null),
   skillLevel,
 });
+
+/** The public sign-up endpoint must receive a blood group (printed on the ID card). */
+export const signUpBloodGroupSchema = z.object({ bloodGroup });
 
 export const registerFormSchema = z
   .object({
@@ -49,6 +63,7 @@ export const registerFormSchema = z
     phone: mobileFromForm,
     dateOfBirth,
     skillLevel,
+    bloodGroup,
     password: z.string().min(8, { error: "At least 8 characters" }).max(128),
     confirmPassword: z.string(),
   })
@@ -195,6 +210,7 @@ export const createAdminSchema = z.object({
   name: text("Name", 80),
   email: z.email({ error: "Enter a valid email" }),
   phone: mobileFromForm,
+  bloodGroup: optionalBloodGroup,
   password: z.string().min(8, { error: "At least 8 characters" }).max(128),
 });
 
@@ -207,6 +223,7 @@ export const memberEditSchema = z.object({
     .optional()
     .transform((v) => v || null),
   skillLevel,
+  bloodGroup: optionalBloodGroup,
   removePhoto: checkbox,
 });
 

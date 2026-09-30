@@ -13,6 +13,8 @@ import {
   UserRound,
   XCircle,
   Cake,
+  Droplet,
+  IdCard,
   KeyRound,
 } from "lucide-react";
 import { ChangePasswordForm } from "./change-password-form";
@@ -25,7 +27,7 @@ import { LinkButton } from "@/components/ui/button";
 import { RoleBadge, StatusBadge } from "@/components/ui/status-badge";
 import { FeeMeters, MembershipTimeCard } from "@/components/membership/membership-charts";
 import { getPublicContent } from "@/lib/content";
-import { academyToday } from "@/lib/membership";
+import { academyToday, pickCurrentPlan } from "@/lib/membership";
 import { expireEndedMemberships, getMemberships } from "@/lib/membership-server";
 import { isAdmin, requireUser } from "@/lib/dal";
 import { capitalize, cn, formatDate, formatINR, formatPhone, formatTime } from "@/lib/utils";
@@ -71,19 +73,18 @@ export default async function DashboardPage(props: PageProps<"/dashboard">) {
   const today = academyToday();
   const history = await getMemberships(user.id);
   // Show the running plan, else the next upcoming one, else the latest.
-  const current =
-    history.find((m) => m.startDate <= today && m.endDate >= today) ??
-    history.filter((m) => m.startDate > today).at(-1) ??
-    history[0];
+  const current = pickCurrentPlan(history, today);
   const totalPaid = history.reduce((sum, m) => sum + m.amountPaid, 0);
   const totalDue = history.reduce((sum, m) => sum + Math.max(0, m.fee - m.amountPaid), 0);
 
   const details = [
+    { icon: IdCard, label: "Member ID", value: user.memberCode ?? "Issued on approval" },
     { icon: UserRound, label: "Full name", value: user.name },
     { icon: Mail, label: "Email", value: user.email },
     { icon: Phone, label: "Phone", value: formatPhone(user.phone) },
     { icon: Cake, label: "Date of birth", value: formatDate(user.dateOfBirth) },
     { icon: Trophy, label: "Skill level", value: capitalize(user.skillLevel ?? "beginner") },
+    { icon: Droplet, label: "Blood group", value: user.bloodGroup ?? "Not recorded" },
     { icon: CalendarDays, label: "Member since", value: formatDate(user.createdAt) },
   ];
 

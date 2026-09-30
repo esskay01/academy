@@ -17,7 +17,7 @@ import { Checkbox, Input, Select, Textarea } from "@/components/ui/field";
 import { ImageInput } from "@/components/ui/image-input";
 import { PasswordInput } from "@/components/ui/password-input";
 import { PhoneInput } from "@/components/ui/phone-input";
-import { SKILL_LEVELS } from "@/lib/constants";
+import { BLOOD_GROUPS, SKILL_LEVELS } from "@/lib/constants";
 import type { Announcement, Coach, Program, SiteSettings, Testimonial, TrainingSlot, User } from "@/lib/db/schema";
 import { capitalize } from "@/lib/utils";
 
@@ -188,6 +188,8 @@ export function SettingsForm({ settings }: { settings: SiteSettings | null }) {
   );
 }
 
+const bloodGroupOptions = [{ value: "", label: "Not set" }, ...BLOOD_GROUPS.map((g) => ({ value: g, label: g }))];
+
 export function CreateAdminForm() {
   return (
     <AdminForm action={createAdmin} submitLabel="Create admin" resetOnSuccess>
@@ -198,6 +200,7 @@ export function CreateAdminForm() {
             <Input id="new-admin-email" label="Email" name="email" type="email" error={e.email} />
             <PhoneInput id="new-admin-phone" error={e.phone} />
             <PasswordInput id="new-admin-password" label="Temporary password" name="password" autoComplete="new-password" error={e.password} showStrength />
+            <Select id="new-admin-blood" label="Blood group" name="bloodGroup" defaultValue="" options={bloodGroupOptions} error={e.bloodGroup} />
           </div>
         </>
       )}
@@ -222,7 +225,7 @@ function Group({ title, children }: { title: string; children: React.ReactNode }
   );
 }
 
-export function MemberEditForm({ member }: { member: Pick<User, "id" | "name" | "email" | "phone" | "dateOfBirth" | "skillLevel" | "image"> }) {
+export function MemberEditForm({ member }: { member: Pick<User, "id" | "name" | "email" | "phone" | "dateOfBirth" | "skillLevel" | "bloodGroup" | "image"> }) {
   return (
     <AdminForm action={updateMember} submitLabel="Save member">
       {(e) => (
@@ -235,6 +238,7 @@ export function MemberEditForm({ member }: { member: Pick<User, "id" | "name" | 
             <PhoneInput defaultValue={member.phone} error={e.phone} />
             <Input label="Date of birth" name="dateOfBirth" type="date" defaultValue={member.dateOfBirth ?? ""} error={e.dateOfBirth} />
             <Select label="Skill level" name="skillLevel" defaultValue={member.skillLevel} options={levelOptions} error={e.skillLevel} />
+            <Select label="Blood group" name="bloodGroup" defaultValue={member.bloodGroup ?? ""} options={bloodGroupOptions} error={e.bloodGroup} />
           </div>
         </>
       )}

@@ -1,6 +1,6 @@
 "use server";
 
-import { and, eq } from "drizzle-orm";
+import { and, eq, isNotNull } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { headers } from "next/headers";
 import { z } from "zod";
@@ -181,6 +181,23 @@ export async function resetMemberPassword(_prev: ActionState, formData: FormData
   return { ok: true, message: `${target.name}'s password was reset. Share it with them securely.` };
 }
 
+/**
+ * Lost or stolen card: mint a new verification token so the old card's QR code
+ * stops verifying. Clearing it lets the DB trigger issue the new one.
+ */
+export async function reissueIdCard(rawUserId: string): Promise<ActionState> {
+  await requireAdmin();
+  const userId = userIdSchema.parse(rawUserId);
+  const [updated] = await db
+    .update(user)
+    .set({ verifyToken: null })
+    .where(and(eq(user.id, userId), isNotNull(user.memberCode)))
+    .returning({ name: user.name });
+  if (!updated) return { ok: false, message: "This member has no ID card yet." };
+  refreshSite();
+  return { ok: true, message: `New card issued for ${updated.name}. The old card no longer verifies — print the new one.` };
+}
+
 export async function saveMembership(_prev: ActionState, formData: FormData): Promise<ActionState> {
   await requireAdmin();
   const userId = userIdSchema.parse(formData.get("userId"));
@@ -273,11 +290,11 @@ export async function createAdmin(_prev: ActionState, formData: FormData): Promi
   await requireAdmin();
   const parsed = createAdminSchema.safeParse(formToObject(formData));
   if (!parsed.success) return invalid(parsed.error);
-  const { name, email, password, phone } = parsed.data;
+  const { name, email, password, phone, bloodGroup } = parsed.data;
 
   try {
     const created = await auth.api.createUser({
-      body: { name, email, password, role: "admin", data: { phone, skillLevel: "professional" } },
+      body: { name, email, password, role: "admin", data: { phone, bloodGroup, skillLevel: "professional" } },
       headers: await headers(),
     });
     await db

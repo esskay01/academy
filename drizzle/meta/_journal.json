@@ -29,6 +29,13 @@
       "when": 1790674564918,
       "tag": "0003_hero_chips",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1790784805209,
+      "tag": "0004_id_cards",
+      "breakpoints": true
     }
   ]
 }

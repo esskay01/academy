@@ -45,7 +45,7 @@ export default async function MembersPage(props: PageProps<"/admin/members">) {
   if (statusFilter) conditions.push(eq(user.status, statusFilter));
   if (query) {
     const pattern = `%${query.replace(/[%_\\]/g, "\\$&")}%`;
-    conditions.push(or(ilike(user.name, pattern), ilike(user.email, pattern), ilike(user.phone, pattern))!);
+    conditions.push(or(ilike(user.name, pattern), ilike(user.email, pattern), ilike(user.phone, pattern), ilike(user.memberCode, pattern))!);
   }
   const where = conditions.length ? and(...conditions) : undefined;
 
@@ -92,7 +92,7 @@ export default async function MembersPage(props: PageProps<"/admin/members">) {
           {statusFilter && <input type="hidden" name="status" value={statusFilter} />}
           {size !== 50 && <input type="hidden" name="size" value={size} />}
           <Search className="pointer-events-none absolute top-1/2 left-3.5 size-4 -translate-y-1/2 text-white/35" />
-          <input name="q" defaultValue={query} placeholder="Search name, email or phone…" className={cn(inputClass, "pl-10")} aria-label="Search members" />
+          <input name="q" defaultValue={query} placeholder="Search name, email, phone or member ID…" className={cn(inputClass, "pl-10")} aria-label="Search members" />
         </form>
         <div className="flex gap-1 rounded-xl border border-white/10 bg-white/[0.03] p-1">
           {filters.map((f) => (
@@ -142,6 +142,7 @@ export default async function MembersPage(props: PageProps<"/admin/members">) {
                           {m.name} <RoleBadge role={m.role} /> {self && <span className="text-xs text-white/40">(you)</span>}
                         </p>
                         <p className="max-w-56 truncate text-xs text-white/45" title={m.email}>{m.email}</p>
+                        {m.memberCode && <p className="font-mono text-[11px] text-white/55" data-testid="member-code">{m.memberCode}</p>}
                       </div>
                     </div>
                   </td>

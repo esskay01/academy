@@ -106,6 +106,14 @@ Pages that run DB work before any request API must call `connection()` first. Ot
 - Pale status text (`text-rose-300`, `text-amber-200`, …) and muted text (`text-white/35`–`/55`) are remapped by unlayered rules to pass WCAG AA; those rules exclude `:hover`/`:focus-visible` so state variants still win.
 - `bg-chart` is the validated data-mark colour (meters, bars) in both themes.
 
+**Member ID cards.**
+- **Member ID** (`user.member_code`, `BBA-<year>-<seq>`) and **verify token** (`user.verify_token`, 32 hex) are issued by the Postgres trigger `issue_member_code` (migration `0004_id_cards.sql`) the first time a user becomes `active`, whatever code path does it. Don't assign them in app code. The trigger keeps `member_code` immutable. Setting `verify_token = NULL` (admin "Reissue card") mints a new token, which invalidates the old card's QR.
+- **Blood group** (`user.blood_group`, `BLOOD_GROUPS` in `constants.ts`) is required on public sign-up. A `hooks.before` middleware in `auth.ts` enforces it only for HTTP `/sign-up/email` requests, so the seed's server-side `auth.api` call is exempt. Admins can set it on the member edit page.
+- **Printing rules** (`idCardIssues` in pure `src/lib/id-card-rules.ts`): member ID issued, status active, an uploaded photo (`/media/…`) and a blood group. The UI and `/admin/members/[id]/id-card/pdf` both enforce them (409 lists what's missing; 403 for non-admins).
+- **The card** is a 2-page CR80 PDF (85.6 × 53.98 mm, front and back) from `src/lib/id-card.ts`: pdf-lib for vector text, bwip-js for a **vector QR** (→ `/verify/<token>`) and **Code 128** (member ID, for USB desk scanners), and sharp for the photo crop and decorative art (rasterised SVG; the Alpine image has no fonts, so no text in SVG). Text uses the standard PDF fonts, which cover Latin-1 only; `toPrintableLatin` keeps names safe. The PDF is also the on-screen preview (`<object>` with a fallback), so what you see is what prints.
+- **Verification:** `/verify/[token]` is public but reachable only via the unguessable token, and shows only status, photo, name, ID and plan validity. `/admin/verify` is the front-desk scanner page (`parseScan` accepts a member ID or a scanned QR URL). The QR encodes `BETTER_AUTH_URL`, so that must be the public origin.
+- **To check a card by eye**, render the PDF with `pdftoppm` and decode it with `zbarimg` (both via apt in the Playwright image).
+
 **Admin overview** (`/admin`): registrations-per-week chart, fees collected/outstanding, renewals due in 7 days (a member's *latest* plan end, so renewed members drop off), batch occupancy meters. Date bucketing is pure and tested in `src/lib/analytics.ts`.
 
 **Quality gates in e2e.** Besides feature flows, the suite runs axe (WCAG 2.1 AA) on key pages in both themes and checks that no page scrolls sideways at 360px and 768px. New UI must keep both green.

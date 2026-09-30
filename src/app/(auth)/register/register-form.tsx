@@ -9,7 +9,7 @@ import { Input, Select } from "@/components/ui/field";
 import { PasswordInput } from "@/components/ui/password-input";
 import { PhoneInput } from "@/components/ui/phone-input";
 import { authClient } from "@/lib/auth-client";
-import { SKILL_LEVELS } from "@/lib/constants";
+import { BLOOD_GROUPS, SKILL_LEVELS } from "@/lib/constants";
 import { capitalize } from "@/lib/utils";
 import { registerFormSchema } from "@/lib/validations";
 
@@ -29,9 +29,9 @@ export function RegisterForm() {
     }
     setErrors({});
 
-    const { name, email, password, phone, dateOfBirth, skillLevel } = parsed.data;
+    const { name, email, password, phone, dateOfBirth, skillLevel, bloodGroup } = parsed.data;
     startTransition(async () => {
-      const { error } = await authClient.signUp.email({ name, email, password, phone, dateOfBirth, skillLevel });
+      const { error } = await authClient.signUp.email({ name, email, password, phone, dateOfBirth, skillLevel, bloodGroup });
       if (error) {
         setFormError(error.message ?? "Registration failed. Please try again.");
         return;
@@ -49,13 +49,23 @@ export function RegisterForm() {
         <PhoneInput error={errors.phone} />
         <Input label="Date of birth" name="dateOfBirth" type="date" error={errors.dateOfBirth} />
       </div>
-      <Select
-        label="Current skill level"
-        name="skillLevel"
-        defaultValue="beginner"
-        error={errors.skillLevel}
-        options={SKILL_LEVELS.map((l) => ({ value: l, label: capitalize(l) }))}
-      />
+      <div className="grid gap-5 sm:grid-cols-2">
+        <Select
+          label="Current skill level"
+          name="skillLevel"
+          defaultValue="beginner"
+          error={errors.skillLevel}
+          options={SKILL_LEVELS.map((l) => ({ value: l, label: capitalize(l) }))}
+        />
+        <Select
+          label="Blood group"
+          name="bloodGroup"
+          defaultValue=""
+          error={errors.bloodGroup}
+          hint="Printed on your member ID card"
+          options={[{ value: "", label: "Select…" }, ...BLOOD_GROUPS.map((g) => ({ value: g, label: g }))]}
+        />
+      </div>
       <div className="grid gap-5 sm:grid-cols-2">
         <PasswordInput label="Password" name="password" autoComplete="new-password" placeholder="Min. 8 characters" error={errors.password} showStrength />
         <PasswordInput label="Confirm password" name="confirmPassword" autoComplete="new-password" error={errors.confirmPassword} />

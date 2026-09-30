@@ -62,3 +62,15 @@ export function formatDuration(months: number, days: number) {
   if (days) parts.push(`${days} day${days === 1 ? "" : "s"}`);
   return parts.join(" ") || "—";
 }
+
+/**
+ * The plan to show for a member: the running one, else the next upcoming one,
+ * else the most recent. `history` is ordered newest start date first.
+ */
+export function pickCurrentPlan<T extends { startDate: string; endDate: string }>(history: T[], today = academyToday()): T | undefined {
+  return (
+    history.find((m) => m.startDate <= today && m.endDate >= today) ??
+    history.filter((m) => m.startDate > today).at(-1) ??
+    history[0]
+  );
+}

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { academyToday, computeEndDate, membershipProgress, paymentStatus } from "@/lib/membership";
+import { academyToday, computeEndDate, membershipProgress, paymentStatus, pickCurrentPlan } from "@/lib/membership";
 
 describe("computeEndDate (last day, inclusive)", () => {
   it("adds months and/or days", () => {
@@ -43,5 +43,26 @@ describe("academyToday", () => {
   it("uses India time, not UTC", () => {
     // 20:00 UTC on 31 Dec is already 1 Jan in India (UTC+5:30).
     expect(academyToday(new Date("2026-12-31T20:00:00Z"))).toBe("2027-01-01");
+  });
+});
+
+describe("pickCurrentPlan", () => {
+  const plan = (startDate: string, endDate: string) => ({ startDate, endDate });
+  const today = "2026-09-30";
+
+  it("prefers the running plan", () => {
+    const running = plan("2026-09-01", "2026-10-31");
+    expect(pickCurrentPlan([plan("2026-11-01", "2026-11-30"), running, plan("2026-01-01", "2026-01-31")], today)).toBe(running);
+  });
+
+  it("falls back to the soonest upcoming plan", () => {
+    const soon = plan("2026-10-05", "2026-11-04");
+    expect(pickCurrentPlan([plan("2026-12-01", "2026-12-31"), soon], today)).toBe(soon);
+  });
+
+  it("falls back to the latest past plan, or nothing", () => {
+    const latest = plan("2026-08-01", "2026-08-31");
+    expect(pickCurrentPlan([latest, plan("2026-01-01", "2026-01-31")], today)).toBe(latest);
+    expect(pickCurrentPlan([], today)).toBeUndefined();
   });
 });
